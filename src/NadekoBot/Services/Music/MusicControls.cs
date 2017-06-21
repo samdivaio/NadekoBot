@@ -165,6 +165,8 @@ namespace NadekoBot.Services.Music
                         _log.Warn("Music thread almost crashed.");
                         _log.Warn(ex);
                         await Task.Delay(3000).ConfigureAwait(false);
+                        _log.Warn("Shutting down, hope you are running the bot with auto restart.");
+                        Environment.Exit(0);
                     }
                     finally
                     {
