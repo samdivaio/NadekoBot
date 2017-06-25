@@ -16,10 +16,10 @@ namespace NadekoBot.Modules.Utility
         [Group]
         public class InfoCommands : NadekoSubmodule
         {
-            private readonly DiscordSocketClient _client;
+            private readonly DiscordShardedClient _client;
             private readonly IStatsService _stats;
 
-            public InfoCommands(DiscordSocketClient client, IStatsService stats, CommandHandler ch)
+            public InfoCommands(DiscordShardedClient client, IStatsService stats, CommandHandler ch)
             {
                 _client = client;
                 _stats = stats;

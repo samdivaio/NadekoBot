@@ -1,8 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using NadekoBot.Extensions;
-using NadekoBot.Services;
-using NadekoBot.Services.Database;
 using NadekoBot.Services.Database.Models;
 using Newtonsoft.Json;
 using System;
@@ -22,10 +20,10 @@ namespace NadekoBot.Services.Searches
         private readonly ConcurrentDictionary<string, StreamStatus> _cachedStatuses = new ConcurrentDictionary<string, StreamStatus>();
 
         private readonly DbService _db;
-        private readonly DiscordSocketClient _client;
+        private readonly DiscordShardedClient _client;
         private readonly NadekoStrings _strings;
 
-        public StreamNotificationService(DbService db, DiscordSocketClient client, NadekoStrings strings)
+        public StreamNotificationService(DbService db, DiscordShardedClient client, NadekoStrings strings)
         {
             _db = db;
             _client = client;
@@ -37,7 +35,7 @@ namespace NadekoBot.Services.Searches
                 IEnumerable<FollowedStream> streams;
                 using (var uow = _db.UnitOfWork)
                 {
-                    streams = uow.GuildConfigs.GetAllFollowedStreams(client.Guilds.Select(x => (long)x.Id).ToList());
+                    streams = uow.GuildConfigs.GetAllFollowedStreams();
                 }
 
                 await Task.WhenAll(streams.Select(async fs =>
@@ -75,7 +73,7 @@ namespace NadekoBot.Services.Searches
                 }));
 
                 firstStreamNotifPass = false;
-            }, null, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
+            }, null, TimeSpan.Zero, TimeSpan.FromSeconds(60));
         }
 
         public async Task<StreamStatus> GetStreamStatus(FollowedStream stream, bool checkCache = true)

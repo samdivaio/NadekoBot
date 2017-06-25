@@ -15,9 +15,9 @@ namespace NadekoBot.Modules.Games
         [Group]
         public class HangmanCommands : NadekoSubmodule
         {
-            private readonly DiscordSocketClient _client;
+            private readonly DiscordShardedClient _client;
 
-            public HangmanCommands(DiscordSocketClient client)
+            public HangmanCommands(DiscordShardedClient client)
             {
                 _client = client;
             }

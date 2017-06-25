@@ -18,25 +18,99 @@ using Discord.WebSocket;
 using System.Diagnostics;
 using Color = Discord.Color;
 using NadekoBot.Services;
-using NadekoBot.DataStructures;
 
 namespace NadekoBot.Modules.Utility
 {
     public partial class Utility : NadekoTopLevelModule
     {
         private static ConcurrentDictionary<ulong, Timer> _rotatingRoleColors = new ConcurrentDictionary<ulong, Timer>();
-        private readonly DiscordSocketClient _client;
+        private readonly DiscordShardedClient _client;
         private readonly IStatsService _stats;
         private readonly IBotCredentials _creds;
-        private readonly NadekoBot _bot;
 
-        public Utility(NadekoBot bot, DiscordSocketClient client, IStatsService stats, IBotCredentials creds)
+        public Utility(DiscordShardedClient client, IStatsService stats, IBotCredentials creds)
         {
             _client = client;
             _stats = stats;
             _creds = creds;
-            _bot = bot;
-        }        
+        }
+
+        //[NadekoCommand, Usage, Description, Aliases]
+        //[RequireContext(ContextType.Guild)]
+        //public async Task Midorina([Remainder] string arg)
+        //{
+        //    var channel = (ITextChannel)Context.Channel;
+
+        //    var roleNames = arg?.Split(';');
+
+        //    if (roleNames == null || roleNames.Length == 0)
+        //        return;
+
+        //    var j = 0;
+        //    var roles = roleNames.Select(x => Context.Guild.Roles.FirstOrDefault(r => String.Compare(r.Name, x, StringComparison.OrdinalIgnoreCase) == 0))
+        //            .Where(x => x != null)
+        //            .Take(10)
+        //            .ToArray();
+
+        //    var rnd = new NadekoRandom();
+        //    var reactions = new[] { "🎬", "🐧", "🌍", "🌺", "🚀", "☀", "🌲", "🍒", "🐾", "🏀" }
+        //        .OrderBy(x => rnd.Next())
+        //        .ToArray();
+
+        //    var roleStrings = roles
+        //            .Select(x => $"{reactions[j++]} -> {x.Name}");
+
+        //    var msg = await Context.Channel.SendConfirmAsync("Pick a Role",
+        //        string.Join("\n", roleStrings)).ConfigureAwait(false);
+
+        //    for (int i = 0; i < roles.Length; i++)
+        //    {
+        //        try { await msg.AddReactionAsync(reactions[i]).ConfigureAwait(false); }
+        //        catch (Exception ex) { _log.Warn(ex); }
+        //        await Task.Delay(1000).ConfigureAwait(false);
+        //    }
+
+        //    msg.OnReaction((r) => Task.Run(async () =>
+        //    {
+        //        try
+        //        {
+        //            var usr = r.User.GetValueOrDefault() as IGuildUser;
+
+        //            if (usr == null)
+        //                return;
+
+        //            var index = Array.IndexOf<string>(reactions, r.Emoji.Name);
+        //            if (index == -1)
+        //                return;
+
+        //            await usr.RemoveRolesAsync(roles[index]);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _log.Warn(ex);
+        //        }
+        //    }), (r) => Task.Run(async () =>
+        //    {
+        //        try
+        //        {
+        //            var usr = r.User.GetValueOrDefault() as IGuildUser;
+
+        //            if (usr == null)
+        //                return;
+
+        //            var index = Array.IndexOf<string>(reactions, r.Emoji.Name);
+        //            if (index == -1)
+        //                return;
+
+        //            await usr.RemoveRolesAsync(roles[index]);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _log.Warn(ex);
+        //        }
+        //    }));
+        //}
+        
 
         [NadekoCommand, Usage, Description, Aliases]
         [RequireContext(ContextType.Guild)]
@@ -280,24 +354,22 @@ namespace NadekoBot.Modules.Utility
         }
 
         [NadekoCommand, Usage, Description, Aliases]
-        [Shard0Precondition]
         public async Task ShardStats(int page = 1)
         {
             if (--page < 0)
                 return;
-            var statuses = _bot.ShardCoord.Statuses.ToArray()
-                .Where(x => x != null);
 
-            var status = string.Join(", ", statuses
-                .GroupBy(x => x.ConnectionState)
+            var status = string.Join(", ", _client.Shards.GroupBy(x => x.ConnectionState)
                 .Select(x => $"{x.Count()} {x.Key}")
                 .ToArray());
 
-            var allShardStrings = statuses
+            var allShardStrings = _client.Shards
                 .Select(x =>
                     GetText("shard_stats_txt", x.ShardId.ToString(),
-                        Format.Bold(x.ConnectionState.ToString()), Format.Bold(x.Guilds.ToString())))
+                        Format.Bold(x.ConnectionState.ToString()), Format.Bold(x.Guilds.Count.ToString())))
                 .ToArray();
+
+
 
             await Context.Channel.SendPaginatedConfirmAsync(_client, page, (curPage) =>
             {
@@ -316,8 +388,20 @@ namespace NadekoBot.Modules.Utility
         }
 
         [NadekoCommand, Usage, Description, Aliases]
+        public async Task ShardId(IGuild guild)
+        {
+            var shardId = _client.GetShardIdFor(guild);
+
+            await Context.Channel.SendConfirmAsync(shardId.ToString()).ConfigureAwait(false);
+        }
+
+        [NadekoCommand, Usage, Description, Aliases]
         public async Task Stats()
-        {            
+        {
+            var shardId = Context.Guild != null
+                ? _client.GetShardIdFor(Context.Guild)
+                : 0;
+
             await Context.Channel.EmbedAsync(
                 new EmbedBuilder().WithOkColor()
                     .WithAuthor(eab => eab.WithName($"NadekoBot v{StatsService.BotVersion}")
@@ -325,7 +409,7 @@ namespace NadekoBot.Modules.Utility
                                           .WithIconUrl("https://cdn.discordapp.com/avatars/116275390695079945/b21045e778ef21c96d175400e779f0fb.jpg"))
                     .AddField(efb => efb.WithName(GetText("author")).WithValue(_stats.Author).WithIsInline(true))
                     .AddField(efb => efb.WithName(GetText("botid")).WithValue(_client.CurrentUser.Id.ToString()).WithIsInline(true))
-                    .AddField(efb => efb.WithName(GetText("shard")).WithValue($"#{_bot.ShardId} / {_creds.TotalShards}").WithIsInline(true))
+                    .AddField(efb => efb.WithName(GetText("shard")).WithValue($"#{shardId} / {_client.Shards.Count}").WithIsInline(true))
                     .AddField(efb => efb.WithName(GetText("commands_ran")).WithValue(_stats.CommandsRan.ToString()).WithIsInline(true))
                     .AddField(efb => efb.WithName(GetText("messages")).WithValue($"{_stats.MessageCounter} ({_stats.MessagesPerSecond:F2}/sec)").WithIsInline(true))
                     .AddField(efb => efb.WithName(GetText("memory")).WithValue($"{_stats.Heap} MB").WithIsInline(true))
@@ -333,7 +417,13 @@ namespace NadekoBot.Modules.Utility
                     .AddField(efb => efb.WithName(GetText("uptime")).WithValue(_stats.GetUptimeString("\n")).WithIsInline(true))
                     .AddField(efb => efb.WithName(GetText("presence")).WithValue(
                         GetText("presence_txt",
-                            _stats.GuildCount, _stats.TextChannels, _stats.VoiceChannels)).WithIsInline(true)));
+                            _client.Guilds.Count, _stats.TextChannels, _stats.VoiceChannels)).WithIsInline(true))
+#if !GLOBAL_NADEKO
+                    //.WithFooter(efb => efb.WithText(GetText("stats_songs",
+                    //    _music.MusicPlayers.Count(mp => mp.Value.CurrentSong != null),
+                    //    _music.MusicPlayers.Sum(mp => mp.Value.Playlist.Count))))
+#endif
+                    );
         }
 
         [NadekoCommand, Usage, Description, Aliases]

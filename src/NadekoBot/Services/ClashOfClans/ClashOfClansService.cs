@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using NadekoBot.Extensions;
-using NadekoBot.Services.Database;
 using NadekoBot.Services.Database.Models;
 using System;
 using System.Collections.Concurrent;
@@ -18,7 +17,7 @@ namespace NadekoBot.Services.ClashOfClans
     // shouldn't be here
     public class ClashOfClansService
     {
-        private readonly DiscordSocketClient _client;
+        private readonly DiscordShardedClient _client;
         private readonly DbService _db;
         private readonly ILocalization _localization;
         private readonly NadekoStrings _strings;
@@ -26,27 +25,28 @@ namespace NadekoBot.Services.ClashOfClans
 
         public ConcurrentDictionary<ulong, List<ClashWar>> ClashWars { get; set; }
 
-        public ClashOfClansService(DiscordSocketClient client, DbService db, 
-            ILocalization localization, NadekoStrings strings, IUnitOfWork uow, 
-            List<long> guilds)
+        public ClashOfClansService(DiscordShardedClient client, DbService db, ILocalization localization, NadekoStrings strings)
         {
             _client = client;
             _db = db;
             _localization = localization;
             _strings = strings;
 
-            ClashWars = new ConcurrentDictionary<ulong, List<ClashWar>>(
-                uow.ClashOfClans
-                    .GetAllWars(guilds)
-                    .Select(cw =>
-                    {
-                        cw.Channel = _client.GetGuild(cw.GuildId)?
-                                                        .GetTextChannel(cw.ChannelId);
-                        return cw;
-                    })
-                    .Where(cw => cw.Channel != null)
-                    .GroupBy(cw => cw.GuildId)
-                    .ToDictionary(g => g.Key, g => g.ToList()));
+            using (var uow = _db.UnitOfWork)
+            {
+                ClashWars = new ConcurrentDictionary<ulong, List<ClashWar>>(
+                    uow.ClashOfClans
+                        .GetAllWars()
+                        .Select(cw =>
+                        {
+                            cw.Channel = _client.GetGuild(cw.GuildId)?
+                                                         .GetTextChannel(cw.ChannelId);
+                            return cw;
+                        })
+                        .Where(cw => cw.Channel != null)
+                        .GroupBy(cw => cw.GuildId)
+                        .ToDictionary(g => g.Key, g => g.ToList()));
+            }
 
             checkWarTimer = new Timer(async _ =>
             {

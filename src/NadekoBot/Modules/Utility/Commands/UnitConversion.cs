@@ -6,6 +6,7 @@ using NadekoBot.Services.Utility;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+
 namespace NadekoBot.Modules.Utility
 {
     public partial class Utility

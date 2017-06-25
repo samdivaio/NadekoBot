@@ -1,8 +1,5 @@
 ﻿using NadekoBot.Services.Database.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace NadekoBot.Services.Database.Repositories.Impl
 {
@@ -10,11 +7,6 @@ namespace NadekoBot.Services.Database.Repositories.Impl
     {
         public ReminderRepository(DbContext context) : base(context)
         {
-        }
-
-        public IEnumerable<Reminder> GetIncludedReminders(List<long> guildIds)
-        {
-            return _set.Where(x => guildIds.Contains((long)x.ServerId)).ToList();
         }
     }
 }

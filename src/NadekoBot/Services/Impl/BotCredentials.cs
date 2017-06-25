@@ -30,23 +30,20 @@ namespace NadekoBot.Services.Impl
         public int TotalShards { get; }
         public string CarbonKey { get; }
 
-        private readonly string _credsFileName = Path.Combine(Directory.GetCurrentDirectory(), "credentials.json");
+        public string credsFileName { get; } = Path.Combine(Directory.GetCurrentDirectory(), "credentials.json");
         public string PatreonAccessToken { get; }
-        public string ShardRunCommand { get; }
-        public string ShardRunArguments { get; }
-        public int ShardRunPort { get; }
 
         public BotCredentials()
         {
             _log = LogManager.GetCurrentClassLogger();
 
             try { File.WriteAllText("./credentials_example.json", JsonConvert.SerializeObject(new CredentialsModel(), Formatting.Indented)); } catch { }
-            if(!File.Exists(_credsFileName))
+            if(!File.Exists(credsFileName))
                 _log.Warn($"credentials.json is missing. Attempting to load creds from environment variables prefixed with 'NadekoBot_'. Example is in {Path.GetFullPath("./credentials_example.json")}");
             try
             {
                 var configBuilder = new ConfigurationBuilder();
-                configBuilder.AddJsonFile(_credsFileName, true)
+                configBuilder.AddJsonFile(credsFileName, true)
                     .AddEnvironmentVariables("NadekoBot_");
 
                 var data = configBuilder.Build();
@@ -64,24 +61,13 @@ namespace NadekoBot.Services.Impl
                 MashapeKey = data[nameof(MashapeKey)];
                 OsuApiKey = data[nameof(OsuApiKey)];
                 PatreonAccessToken = data[nameof(PatreonAccessToken)];
-                ShardRunCommand = data[nameof(ShardRunCommand)];
-                ShardRunArguments = data[nameof(ShardRunArguments)];
-                if (string.IsNullOrWhiteSpace(ShardRunCommand))
-                    ShardRunCommand = "dotnet";
-                if (string.IsNullOrWhiteSpace(ShardRunArguments))
-                    ShardRunArguments = "run -c Release -- {0} {1} {2}";
-                
-                var portStr = data[nameof(ShardRunPort)];
-                if (string.IsNullOrWhiteSpace(portStr))
-                    ShardRunPort = new NadekoRandom().Next(5000, 6000);
-                else
-                    ShardRunPort = int.Parse(portStr);
 
                 int ts = 1;
                 int.TryParse(data[nameof(TotalShards)], out ts);
                 TotalShards = ts < 1 ? 1 : ts;
 
-                ulong.TryParse(data[nameof(ClientId)], out ulong clId);
+                ulong clId = 0;
+                ulong.TryParse(data[nameof(ClientId)], out clId);
                 ClientId = clId;
 
                 //var scId = data[nameof(SoundCloudClientId)];
@@ -95,7 +81,7 @@ namespace NadekoBot.Services.Impl
                                 ? "sqlite" 
                                 : dbSection["Type"], 
                             string.IsNullOrWhiteSpace(dbSection["ConnectionString"]) 
-                                ? "Filename=./data/NadekoBot.db"
+                                ? "Filename=./data/NadekoBot.db" 
                                 : dbSection["ConnectionString"]);
             }
             catch (Exception ex)
@@ -121,10 +107,6 @@ namespace NadekoBot.Services.Impl
             public DBConfig Db { get; set; } = new DBConfig("sqlite", "Filename=./data/NadekoBot.db");
             public int TotalShards { get; set; } = 1;
             public string PatreonAccessToken { get; set; } = "";
-
-            public string ShardRunCommand { get; set; } = "";
-            public string ShardRunArguments { get; set; } = "";
-            public int? ShardRunPort { get; set; } = null;
         }
 
         private class DbModel

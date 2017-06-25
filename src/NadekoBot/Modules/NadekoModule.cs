@@ -86,12 +86,13 @@ namespace NadekoBot.Modules
             var text = GetText(textKey, replacements);
             return Context.Channel.SendConfirmAsync(Context.User.Mention + " " + text);
         }
-        
-        // TypeConverter typeConverter = TypeDescriptor.GetConverter(propType); ?
+
+        // todo maybe make this generic and use
+        // TypeConverter typeConverter = TypeDescriptor.GetConverter(propType);
         public async Task<string> GetUserInputAsync(ulong userId, ulong channelId)
         {
             var userInputTask = new TaskCompletionSource<string>();
-            var dsc = (DiscordSocketClient)Context.Client;
+            var dsc = (DiscordShardedClient)Context.Client;
             try
             {
                 dsc.MessageReceived += MessageReceived;
