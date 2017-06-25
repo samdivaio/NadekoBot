@@ -18,13 +18,16 @@ namespace NadekoBot.Services.Games
         private string[] answers { get; }
         private readonly ConcurrentDictionary<ulong, int> _participants = new ConcurrentDictionary<ulong, int>();
         private readonly string _question;
-        private readonly DiscordSocketClient _client;
+        private readonly DiscordShardedClient _client;
         private readonly NadekoStrings _strings;
         private bool running = false;
+        private HashSet<ulong> _guildUsers;
 
         public event Action<ulong> OnEnded = delegate { };
 
-        public Poll(DiscordSocketClient client, NadekoStrings strings, IUserMessage umsg, string question, IEnumerable<string> enumerable)
+        public bool IsPublic { get; }
+
+        public Poll(DiscordShardedClient client, NadekoStrings strings, IUserMessage umsg, string question, IEnumerable<string> enumerable, bool isPublic = false)
         {
             _client = client;
             _strings = strings;
@@ -33,6 +36,7 @@ namespace NadekoBot.Services.Games
             _guild = ((ITextChannel)umsg.Channel).Guild;
             _question = question;
             answers = enumerable as string[] ?? enumerable.ToArray();
+            IsPublic = isPublic;
         }
 
         public EmbedBuilder GetStats(string title)
@@ -78,7 +82,13 @@ namespace NadekoBot.Services.Games
             var msgToSend = GetText("poll_created", Format.Bold(_originalMessage.Author.Username)) + "\n\n" + Format.Bold(_question) + "\n";
             var num = 1;
             msgToSend = answers.Aggregate(msgToSend, (current, answ) => current + $"`{num++}.` **{answ}**\n");
-            msgToSend += "\n" + Format.Bold(GetText("poll_vote_public"));
+            if (!IsPublic)
+                msgToSend += "\n" + Format.Bold(GetText("poll_vote_private"));
+            else
+                msgToSend += "\n" + Format.Bold(GetText("poll_vote_public"));
+
+            if (!IsPublic)
+                _guildUsers = new HashSet<ulong>((await _guild.GetUsersAsync().ConfigureAwait(false)).Select(x => x.Id));
 
             await _originalMessage.Channel.SendConfirmAsync(msgToSend).ConfigureAwait(false);
             running = true;
@@ -104,16 +114,36 @@ namespace NadekoBot.Services.Games
                 return false;
 
             IMessageChannel ch;
-            //if public, channel must be the same the poll started in
-            if (_originalMessage.Channel.Id != msg.Channel.Id)
-                return false;
-            ch = msg.Channel;
+            if (IsPublic)
+            {
+                //if public, channel must be the same the poll started in
+                if (_originalMessage.Channel.Id != msg.Channel.Id)
+                    return false;
+                ch = msg.Channel;
+            }
+            else
+            {
+                //if private, channel must be dm channel
+                if ((ch = msg.Channel as IDMChannel) == null)
+                    return false;
+
+                // user must be a member of the guild this poll is in
+                if (!_guildUsers.Contains(msg.Author.Id))
+                    return false;
+            }
 
             //user can vote only once
             if (_participants.TryAdd(msg.Author.Id, vote))
             {
-                var toDelete = await ch.SendConfirmAsync(GetText("poll_voted", Format.Bold(msg.Author.ToString()))).ConfigureAwait(false);
-                toDelete.DeleteAfter(5);
+                if (!IsPublic)
+                {
+                    await ch.SendConfirmAsync(GetText("thanks_for_voting", Format.Bold(msg.Author.Username))).ConfigureAwait(false);
+                }
+                else
+                {
+                    var toDelete = await ch.SendConfirmAsync(GetText("poll_voted", Format.Bold(msg.Author.ToString()))).ConfigureAwait(false);
+                    toDelete.DeleteAfter(5);
+                }
                 return true;
             }
             return false;

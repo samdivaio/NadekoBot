@@ -21,9 +21,9 @@ namespace NadekoBot.Modules.Utility
         {
             private readonly CommandMapService _service;
             private readonly DbService _db;
-            private readonly DiscordSocketClient _client;
+            private readonly DiscordShardedClient _client;
 
-            public CommandMapCommands(CommandMapService service, DbService db, DiscordSocketClient client)
+            public CommandMapCommands(CommandMapService service, DbService db, DiscordShardedClient client)
             {
                 _service = service;
                 _db = db;

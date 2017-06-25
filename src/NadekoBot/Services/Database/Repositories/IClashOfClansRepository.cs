@@ -5,6 +5,6 @@ namespace NadekoBot.Services.Database.Repositories
 {
     public interface IClashOfClansRepository : IRepository<ClashWar>
     {
-        IEnumerable<ClashWar> GetAllWars(List<long> guilds);
+        IEnumerable<ClashWar> GetAllWars();
     }
 }

@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using NadekoBot.Extensions;
-using NadekoBot.Services.Database;
 using NadekoBot.Services.Database.Models;
 using NLog;
 using System;
@@ -31,11 +30,10 @@ namespace NadekoBot.Services.Utility
         private readonly CancellationTokenSource cancelSource;
         private readonly CancellationToken cancelAllToken;
         private readonly BotConfig _config;
-        private readonly DiscordSocketClient _client;
+        private readonly DiscordShardedClient _client;
         private readonly DbService _db;
 
-        public RemindService(DiscordSocketClient client, BotConfig config, DbService db, 
-            List<long> guilds, IUnitOfWork uow)
+        public RemindService(DiscordShardedClient client, BotConfig config, DbService db)
         {
             _config = config;
             _client = client;
@@ -44,8 +42,11 @@ namespace NadekoBot.Services.Utility
 
             cancelSource = new CancellationTokenSource();
             cancelAllToken = cancelSource.Token;
-            
-            var reminders = uow.Reminders.GetIncludedReminders(guilds).ToList();
+            List<Reminder> reminders;
+            using (var uow = _db.UnitOfWork)
+            {
+                reminders = uow.Reminders.GetAll().ToList();
+            }
             RemindMessageFormat = _config.RemindMessageFormat;
 
             foreach (var r in reminders)

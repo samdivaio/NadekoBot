@@ -47,10 +47,12 @@ namespace NadekoBot.Services.Impl
             this.Reload();
         }
 
-        public void Reload()
+        public TimeSpan Reload()
         {
             try
             {
+                _log.Info("Loading images...");
+                var sw = Stopwatch.StartNew();
                 Heads = File.ReadAllBytes(_headsPath).ToImmutableArray();
                 Tails = File.ReadAllBytes(_tailsPath).ToImmutableArray();
 
@@ -77,6 +79,10 @@ namespace NadekoBot.Services.Impl
 
                 WifeMatrix = File.ReadAllBytes(_wifeMatrixPath).ToImmutableArray();
                 RategirlDot = File.ReadAllBytes(_rategirlDot).ToImmutableArray();
+
+                sw.Stop();
+                _log.Info($"Images loaded after {sw.Elapsed.TotalSeconds:F2}s!");
+                return sw.Elapsed;
             }
             catch (Exception ex)
             {

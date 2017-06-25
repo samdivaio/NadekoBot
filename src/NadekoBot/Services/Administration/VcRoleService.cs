@@ -14,11 +14,11 @@ namespace NadekoBot.Services.Administration
     {
         private readonly Logger _log;
         private readonly DbService _db;
-        private readonly DiscordSocketClient _client;
+        private readonly DiscordShardedClient _client;
 
         public ConcurrentDictionary<ulong, ConcurrentDictionary<ulong, IRole>> VcRoles { get; }
 
-        public VcRoleService(DiscordSocketClient client, IEnumerable<GuildConfig> gcs, DbService db)
+        public VcRoleService(DiscordShardedClient client, IEnumerable<GuildConfig> gcs, DbService db)
         {
             _log = LogManager.GetCurrentClassLogger();
             _db = db;

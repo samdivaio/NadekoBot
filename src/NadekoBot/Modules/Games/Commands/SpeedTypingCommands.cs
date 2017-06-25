@@ -20,9 +20,9 @@ namespace NadekoBot.Modules.Games
         {
             public static ConcurrentDictionary<ulong, TypingGame> RunningContests = new ConcurrentDictionary<ulong, TypingGame>();
             private readonly GamesService _games;
-            private readonly DiscordSocketClient _client;
+            private readonly DiscordShardedClient _client;
 
-            public SpeedTypingCommands(DiscordSocketClient client, GamesService games)
+            public SpeedTypingCommands(DiscordShardedClient client, GamesService games)
             {
                 _games = games;
                 _client = client;
