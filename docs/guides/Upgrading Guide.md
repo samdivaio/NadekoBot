@@ -10,21 +10,21 @@
 
 #### If you are running Dockerised Nadeko
 
-- Shutdown your existing container **docker stop nadeko**.
+- Shutdown your existing container `docker stop nadeko`.
 - Move you credentials and other files to another folder.
-- Delete your container **docker rm nadeko**.
-- Create a new container **docker create --name=nadeko -v /nadeko/:/root/nadeko uirel/nadeko:1.4**.
-- Start the container **docker start nadeko** wait for it to complain about lacking credentials.
-- Stop the container **docker stop nadeko** open the nadeko folder and replace the credentials, database and other files with your copies.
-- Restart the container **docker start nadeko**.
+- Delete your container `docker rm nadeko`.
+- Create a new container `docker create --name=nadeko -v /nadeko/:/root/nadeko uirel/nadeko:1.4`.
+- Start the container with `docker start nadeko`, and wait for it to complain about lacking credentials.
+- Stop the container, `docker stop nadeko`, open the `Nadeko` folder and replace the credentials, database and other files with your copies.
+- Restart the container `docker start nadeko`.
 
 #### If you have NadekoBot 1.x on Linux or macOS
 
-- Backup the `NadekoBot.db` from `NadekoBot/src/NadekoBot/bin/Release/netcoreapp1.0/data`
-- Backup the `credentials.json` from `NadekoBot/src/NadekoBot/`
-- **For MacOS Users Only:** download and install the latest version of [.NET Core SDK](https://www.microsoft.com/net/core#macos)
+- Backup the `NadekoBot.db` from `NadekoBot/src/NadekoBot/bin/Release/netcoreapp1.0/data`.
+- Backup the `credentials.json` from `NadekoBot/src/NadekoBot/`.
+- **For MacOS Users Only:** download and install the latest version of [.NET Core SDK](https://www.microsoft.com/net/core#macos).
 - Next, use the command `cd ~ && wget -N https://github.com/Kwoth/NadekoBot-BashScript/raw/1.4/linuxAIO.sh && bash linuxAIO.sh`
 - **For Ubuntu, Debian and CentOS Users Only:** use the option `4. Auto-Install Prerequisites` to install the latest version of .NET Core SDK.
-- Use option `1. Download NadekoBot` to update your NadekoBot to 1.4.x.
+- Use option `1. Download NadekoBot` to update your NadekoBot to 1.4+ version.
 - Next, just [run your NadekoBot.](http://nadekobot.readthedocs.io/en/latest/guides/Linux%20Guide/#running-nadekobot)
-- *NOTE: 1.4.x uses `NadekoBot.db` file from `NadekoBot/src/NadekoBot/bin/Release/netcoreapp1.1/data` folder.*
+- *NOTE: 1.4+ version uses `NadekoBot.db` file from `NadekoBot/src/NadekoBot/bin/Release/netcoreapp1.1/data` folder.*

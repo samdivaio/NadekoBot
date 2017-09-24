@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NadekoBot.Services.Database;
+using System.Linq;
 
 namespace NadekoBot.Services
 {
     public class DbService
     {
         private readonly DbContextOptions options;
+        private readonly DbContextOptions migrateOptions;
 
         private readonly string _connectionString;
 
@@ -15,25 +17,35 @@ namespace NadekoBot.Services
             var optionsBuilder = new DbContextOptionsBuilder();
             optionsBuilder.UseSqlite(creds.Db.ConnectionString);
             options = optionsBuilder.Options;
-            //switch (_creds.Db.Type.ToUpperInvariant())
-            //{
-            //    case "SQLITE":
-            //        dbType = typeof(NadekoSqliteContext);
-            //        break;
-            //    //case "SQLSERVER":
-            //    //    dbType = typeof(NadekoSqlServerContext);
-            //    //    break;
-            //    default:
-            //        break;
 
-            //}
+            optionsBuilder = new DbContextOptionsBuilder();
+            optionsBuilder.UseSqlite(creds.Db.ConnectionString, x => x.SuppressForeignKeyEnforcement());
+            migrateOptions = optionsBuilder.Options;
         }
 
         public NadekoContext GetDbContext()
         {
             var context = new NadekoContext(options);
-            context.Database.Migrate();
+            if (context.Database.GetPendingMigrations().Any())
+            {
+                var mContext = new NadekoContext(migrateOptions);
+                mContext.Database.Migrate();
+                mContext.SaveChanges();
+                mContext.Dispose();
+            }
+            context.Database.SetCommandTimeout(60);
             context.EnsureSeedData();
+
+            //set important sqlite stuffs
+            var conn = context.Database.GetDbConnection();
+            conn.Open();
+
+            context.Database.ExecuteSqlCommand("PRAGMA journal_mode=WAL");
+            using (var com = conn.CreateCommand())
+            {
+                com.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF";
+                com.ExecuteNonQuery();
+            }
 
             return context;
         }
