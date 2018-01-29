@@ -151,6 +151,7 @@ namespace NadekoBot.Modules.Music.Common
                 this.OutputTextChannel = original;
             }
             this._musicService = musicService;
+            this.AutoDelete = ms.SongAutoDelete;
             this._google = google;
 
             _player = new Thread(new ThreadStart(PlayerLoop));
@@ -459,7 +460,7 @@ namespace NadekoBot.Modules.Music.Common
                 // if player is stopped, and user uses .n, it should play current song.  
                 // It's a bit weird, but that's the least annoying solution
                 if (!Stopped)
-                    if (!RepeatPlaylist && Queue.IsLast()) // if it's the last song in the queue, and repeat playlist is disabled
+                    if (!RepeatPlaylist && Queue.IsLast() && !Autoplay) // if it's the last song in the queue, and repeat playlist is disabled
                     { //stop the queue
                         Stop();
                         return;
@@ -479,6 +480,7 @@ namespace NadekoBot.Modules.Music.Common
             lock (locker)
             {
                 Stopped = true;
+                Autoplay = false;
                 //Queue.ResetCurrent();
                 if (clearQueue)
                     Queue.Clear();

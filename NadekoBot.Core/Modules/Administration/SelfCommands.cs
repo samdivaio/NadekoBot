@@ -17,6 +17,7 @@ using NadekoBot.Modules.Administration.Services;
 using Newtonsoft.Json;
 using NadekoBot.Common.ShardCom;
 using Discord.Net;
+using NadekoBot.Core.Common;
 
 namespace NadekoBot.Modules.Administration
 {
@@ -414,9 +415,9 @@ namespace NadekoBot.Modules.Administration
 
             [NadekoCommand, Usage, Description, Aliases]
             [OwnerOnly]
-            public async Task SetGame([Remainder] string game = null)
+            public async Task SetGame(ActivityType type, [Remainder] string game = null)
             {
-                await _bot.SetGameAsync(game).ConfigureAwait(false);
+                await _bot.SetGameAsync(game, type).ConfigureAwait(false);
 
                 await ReplyConfirmLocalized("set_game").ConfigureAwait(false);
             }
@@ -427,7 +428,7 @@ namespace NadekoBot.Modules.Administration
             {
                 name = name ?? "";
 
-                await _client.SetGameAsync(name, url, StreamType.Twitch).ConfigureAwait(false);
+                await _client.SetGameAsync(name, url, ActivityType.Streaming).ConfigureAwait(false);
 
                 await ReplyConfirmLocalized("set_stream").ConfigureAwait(false);
             }
@@ -478,14 +479,24 @@ namespace NadekoBot.Modules.Administration
 
             [NadekoCommand, Usage, Description, Aliases]
             [OwnerOnly]
-            public async Task ReloadImages()
+            public async Task ImagesReload()
             {
-                var sw = Stopwatch.StartNew();
                 var sub = _cache.Redis.GetSubscriber();
                 sub.Publish(_creds.RedisKey() + "_reload_images", 
                     "",
                     StackExchange.Redis.CommandFlags.FireAndForget);
                 await ReplyConfirmLocalized("images_loaded", 0).ConfigureAwait(false);
+            }
+
+            [NadekoCommand, Usage, Description, Aliases]
+            [OwnerOnly]
+            public async Task BotConfigReload()
+            {
+                var sub = _cache.Redis.GetSubscriber();
+                sub.Publish(_creds.RedisKey() + "_reload_bot_config",
+                    "",
+                    StackExchange.Redis.CommandFlags.FireAndForget);
+                await ReplyConfirmLocalized("bot_config_reloaded").ConfigureAwait(false);
             }
 
             private static UserStatus SettableUserStatusToUserStatus(SettableUserStatus sus)

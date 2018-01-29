@@ -20,6 +20,7 @@ using NadekoBot.Common.ShardCom;
 using NadekoBot.Core.Services.Database;
 using StackExchange.Redis;
 using Newtonsoft.Json;
+using NadekoBot.Core.Common;
 
 namespace NadekoBot
 {
@@ -71,7 +72,7 @@ namespace NadekoBot
             Client = new DiscordSocketClient(new DiscordSocketConfig
             {
                 MessageCacheSize = 10,
-                LogLevel = LogSeverity.Warning,
+                LogLevel = LogSeverity.Info,
                 ConnectionTimeout = int.MaxValue,
                 TotalShards = Credentials.TotalShards,
                 ShardId = shardId,
@@ -92,7 +93,7 @@ namespace NadekoBot
 
             SetupShard(parentProcessId);
 
-#if GLOBAL_NADEKO
+#if GLOBAL_NADEKO || DEBUG
             Client.Log += Client_Log;
 #endif
         }
@@ -347,9 +348,9 @@ namespace NadekoBot
             {
                 try
                 {
-                    var obj = new { Name = default(string) };
+                    var obj = new { Name = default(string), Activity = ActivityType.Playing };
                     obj = JsonConvert.DeserializeAnonymousType(game, obj);
-                    await Client.SetGameAsync(obj.Name).ConfigureAwait(false);
+                    await Client.SetGameAsync(obj.Name, type: obj.Activity).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -363,7 +364,7 @@ namespace NadekoBot
                 {
                     var obj = new { Name = "", Url = "" };
                     obj = JsonConvert.DeserializeAnonymousType(streamData, obj);
-                    await Client.SetGameAsync(obj.Name, obj.Url, StreamType.Twitch).ConfigureAwait(false);
+                    await Client.SetGameAsync(obj.Name, obj.Url, ActivityType.Streaming).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -372,9 +373,9 @@ namespace NadekoBot
             }, CommandFlags.FireAndForget);
         }
 
-        public Task SetGameAsync(string game)
+        public Task SetGameAsync(string game, ActivityType type)
         {
-            var obj = new { Name = game };
+            var obj = new { Name = game, Activity = type };
             var sub = Services.GetService<IDataCache>().Redis.GetSubscriber();
             return sub.PublishAsync(Client.CurrentUser.Id + "_status.game_set", JsonConvert.SerializeObject(obj));
         }
@@ -383,7 +384,7 @@ namespace NadekoBot
         {
             var obj = new { Name = name, Url = url };
             var sub = Services.GetService<IDataCache>().Redis.GetSubscriber();
-            return sub.PublishAsync(Client.CurrentUser.Id + "_status.game_set", JsonConvert.SerializeObject(obj));
+            return sub.PublishAsync(Client.CurrentUser.Id + "_status.stream_set", JsonConvert.SerializeObject(obj));
         }
 
         //private readonly Dictionary<string, (IEnumerable<ModuleInfo> Modules, IEnumerable<Type> Types)> _loadedPackages = new Dictionary<string, (IEnumerable<ModuleInfo>, IEnumerable<Type>)>();

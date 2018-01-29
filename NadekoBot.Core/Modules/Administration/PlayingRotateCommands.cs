@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using NadekoBot.Common.Attributes;
 using NadekoBot.Modules.Administration.Services;
 using Microsoft.EntityFrameworkCore;
+using NadekoBot.Core.Common;
+using Discord;
 
 namespace NadekoBot.Modules.Administration
 {
@@ -16,10 +18,12 @@ namespace NadekoBot.Modules.Administration
         {
             private static readonly object _locker = new object();
             private readonly DbService _db;
+            private readonly IBotConfigProvider _bcp;
 
-            public PlayingRotateCommands(DbService db)
+            public PlayingRotateCommands(DbService db, IBotConfigProvider bcp)
             {
                 _db = db;
+                _bcp = bcp;
             }
 
             [NadekoCommand, Usage, Description, Aliases]
@@ -42,15 +46,17 @@ namespace NadekoBot.Modules.Administration
 
             [NadekoCommand, Usage, Description, Aliases]
             [OwnerOnly]
-            public async Task AddPlaying([Remainder] string status)
+            public async Task AddPlaying(ActivityType t,[Remainder] string status)
             {
                 using (var uow = _db.UnitOfWork)
                 {
                     var config = uow.BotConfig.GetOrCreate(set => set.Include(x => x.RotatingStatusMessages));
-                    var toAdd = new PlayingStatus { Status = status };
+                    var toAdd = new PlayingStatus { Status = status, Type = t };
                     config.RotatingStatusMessages.Add(toAdd);
                     await uow.CompleteAsync();
                 }
+
+                _bcp.Reload();
 
                 await ReplyConfirmLocalized("ropl_added").ConfigureAwait(false);
             }
@@ -65,7 +71,7 @@ namespace NadekoBot.Modules.Administration
                 {
                     var i = 1;
                     await ReplyConfirmLocalized("ropl_list",
-                            string.Join("\n\t", _service.BotConfig.RotatingStatusMessages.Select(rs => $"`{i++}.` {rs.Status}")))
+                            string.Join("\n\t", _service.BotConfig.RotatingStatusMessages.Select(rs => $"`{i++}.` *{rs.Type}* {rs.Status}")))
                         .ConfigureAwait(false);
                 }
 
@@ -88,6 +94,8 @@ namespace NadekoBot.Modules.Administration
                     config.RotatingStatusMessages.RemoveAt(index);
                     await uow.CompleteAsync();
                 }
+
+                _bcp.Reload();
                 await ReplyConfirmLocalized("reprm", msg).ConfigureAwait(false);
             }
         }

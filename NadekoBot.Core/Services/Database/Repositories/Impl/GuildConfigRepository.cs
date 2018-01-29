@@ -52,6 +52,9 @@ namespace NadekoBot.Core.Services.Database.Repositories.Impl
                 .Include(gc => gc.XpSettings)
                     .ThenInclude(x => x.ExclusionList)
                 .Include(gc => gc.MusicSettings)
+                .Include(gc => gc.DelMsgOnCmdChannels)
+                .Include(gc => gc.ReactionRoleMessages)
+                    .ThenInclude(x => x.ReactionRoles)
                 .ToList();
 
         /// <summary>
