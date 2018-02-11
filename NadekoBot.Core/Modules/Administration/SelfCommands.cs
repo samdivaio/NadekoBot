@@ -1,4 +1,4 @@
-﻿using Discord;
+using Discord;
 using Discord.Commands;
 using NadekoBot.Extensions;
 using System;
@@ -33,18 +33,16 @@ namespace NadekoBot.Modules.Administration
             private static readonly object _locker = new object();
             private readonly DiscordSocketClient _client;
             private readonly IImageCache _images;
-            private readonly IBotConfigProvider _bc;
             private readonly NadekoBot _bot;
             private readonly IBotCredentials _creds;
             private readonly IDataCache _cache;
 
             public SelfCommands(DbService db, NadekoBot bot, DiscordSocketClient client,
-                IBotConfigProvider bc, IBotCredentials creds, IDataCache cache)
+                IBotCredentials creds, IDataCache cache)
             {
                 _db = db;
                 _client = client;
                 _images = cache.LocalImages;
-                _bc = bc;
                 _bot = bot;
                 _creds = creds;
                 _cache = cache;
@@ -467,11 +465,12 @@ namespace NadekoBot.Modules.Administration
                     if (CREmbed.TryParse(msg, out var crembed))
                     {
                         rep.Replace(crembed);
-                        await ch.EmbedAsync(crembed.ToEmbed(), "📣" + crembed.PlainText?.SanitizeMentions())
+                        await ch.EmbedAsync(crembed.ToEmbed(), $"`#{Context.User}` 📣 " + crembed.PlainText?.SanitizeMentions())
                             .ConfigureAwait(false);
+                        await ReplyConfirmLocalized("message_sent").ConfigureAwait(false);
                         return;
                     }
-                    await ch.SendMessageAsync($"`#{msg}` 📣 " + rep.Replace(msg)?.SanitizeMentions());
+                    await ch.SendMessageAsync($"**{Context.User}** 📣 " + rep.Replace(msg)?.SanitizeMentions());
                 }
                 else if (ids[1].ToUpperInvariant().StartsWith("U:"))
                 {
@@ -485,12 +484,13 @@ namespace NadekoBot.Modules.Administration
                     if (CREmbed.TryParse(msg, out var crembed))
                     {
                         rep.Replace(crembed);
-                        await (await user.GetOrCreateDMChannelAsync()).EmbedAsync(crembed.ToEmbed(), "📣" + crembed.PlainText?.SanitizeMentions())
+                        await (await user.GetOrCreateDMChannelAsync()).EmbedAsync(crembed.ToEmbed(), $"`{Context.User}` 📣 " + crembed.PlainText?.SanitizeMentions())
                             .ConfigureAwait(false);
+                        await ReplyConfirmLocalized("message_sent").ConfigureAwait(false);
                         return;
                     }
 
-                    await (await user.GetOrCreateDMChannelAsync()).SendMessageAsync($"`#{msg}` 📣 " + rep.Replace(msg)?.SanitizeMentions());
+                    await (await user.GetOrCreateDMChannelAsync()).SendMessageAsync($"`{Context.User}` 📣 " + rep.Replace(msg)?.SanitizeMentions());
                 }
                 else
                 {

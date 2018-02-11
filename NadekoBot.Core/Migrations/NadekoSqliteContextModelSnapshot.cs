@@ -166,7 +166,9 @@ namespace NadekoBot.Migrations
 
                     b.Property<int>("DivorcePriceMultiplier");
 
-                    b.Property<string>("ErrorColor");
+                    b.Property<string>("ErrorColor")
+                        .ValueGeneratedOnAdd()
+                        .HasDefaultValue("ee281f");
 
                     b.Property<bool>("ForwardMessages");
 
@@ -176,13 +178,21 @@ namespace NadekoBot.Migrations
 
                     b.Property<string>("Locale");
 
+                    b.Property<int>("MaxBet");
+
                     b.Property<int>("MigrationVersion");
+
+                    b.Property<int>("MinBet");
 
                     b.Property<int>("MinWaifuPrice");
 
                     b.Property<int>("MinimumBetAmount");
 
-                    b.Property<string>("OkColor");
+                    b.Property<int>("MinimumTriviaWinReq");
+
+                    b.Property<string>("OkColor")
+                        .ValueGeneratedOnAdd()
+                        .HasDefaultValue("00e584");
 
                     b.Property<float>("PatreonCurrencyPerCent")
                         .ValueGeneratedOnAdd()
@@ -199,6 +209,10 @@ namespace NadekoBot.Migrations
                     b.Property<int>("TimelyCurrencyPeriod");
 
                     b.Property<int>("TriviaCurrencyReward");
+
+                    b.Property<int>("WaifuGiftMultiplier")
+                        .ValueGeneratedOnAdd()
+                        .HasDefaultValue(1);
 
                     b.Property<int>("XpMinutesTimeout")
                         .ValueGeneratedOnAdd()
@@ -350,6 +364,8 @@ namespace NadekoBot.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DateAdded");
+
                     b.ToTable("CurrencyTransactions");
                 });
 
@@ -438,6 +454,12 @@ namespace NadekoBot.Migrations
 
                     b.HasIndex("ClubId");
 
+                    b.HasIndex("CurrencyAmount");
+
+                    b.HasIndex("TotalXp");
+
+                    b.HasIndex("UserId");
+
                     b.ToTable("DiscordUser");
                 });
 
@@ -455,6 +477,8 @@ namespace NadekoBot.Migrations
                     b.Property<ulong>("UserId");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Amount");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -1103,6 +1127,10 @@ namespace NadekoBot.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("GuildId");
+
+                    b.HasIndex("Keyword");
+
                     b.ToTable("Quotes");
                 });
 
@@ -1190,6 +1218,8 @@ namespace NadekoBot.Migrations
                     b.Property<DateTime>("When");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DateAdded");
 
                     b.ToTable("Reminders");
                 });
@@ -1503,6 +1533,14 @@ namespace NadekoBot.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AwardedXp");
+
+                    b.HasIndex("GuildId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Xp");
+
                     b.HasIndex("UserId", "GuildId")
                         .IsUnique();
 
@@ -1549,6 +1587,8 @@ namespace NadekoBot.Migrations
                     b.HasIndex("AffinityId");
 
                     b.HasIndex("ClaimerId");
+
+                    b.HasIndex("Price");
 
                     b.HasIndex("WaifuId")
                         .IsUnique();
@@ -1624,6 +1664,12 @@ namespace NadekoBot.Migrations
                     b.Property<ulong>("UserId");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DateAdded");
+
+                    b.HasIndex("GuildId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Warnings");
                 });

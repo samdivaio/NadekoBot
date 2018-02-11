@@ -4,6 +4,7 @@ using NadekoBot.Core.Services;
 using Newtonsoft.Json;
 using NLog;
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -20,7 +21,7 @@ namespace NadekoBot.Core.Modules.Gambling.Services
         private readonly CurrencyService _cs;
         private readonly Task _reqTask;
 
-        public WebMiningService(IBotCredentials creds, DbService db, CurrencyService cs)
+        public WebMiningService(NadekoBot nadeko,IBotCredentials creds, DbService db, CurrencyService cs)
         {
             _log = LogManager.GetCurrentClassLogger();
             _creds = creds;
@@ -34,15 +35,15 @@ namespace NadekoBot.Core.Modules.Gambling.Services
                 _http.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
             }
-
-            _reqTask = RequestAsync();
+            if (nadeko.Client.ShardId == 0)
+                _reqTask = RequestAsync();
         }
 
         private async Task RequestAsync()
         {
             while (true)
             {
-                await Task.Delay(TimeSpan.FromMinutes(30)).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMinutes(60)).ConfigureAwait(false);
                 await PayoutRewards();
             }
         }
@@ -63,19 +64,10 @@ namespace NadekoBot.Core.Modules.Gambling.Services
                     return;
                 }
 
-                using (var uow = _db.UnitOfWork)
-                {
-                    foreach (var p in data)
-                    {
-                        if (!ulong.TryParse(p.User, out var userId) || p.Amount <= 0)
-                            continue;
-
-                        _log.Info("Paying out {0}🌸 to {1}", p.Amount, userId);
-                        if (p.Amount > 0)
-                            await _cs.AddAsync(userId, "Mining payout", p.Amount, uow, gamble: true);
-                    }
-                    uow.Complete();
-                }
+                var filtered = data.Where(x => x.Amount > 0 && ulong.TryParse(x.User, out _)).ToArray();
+                await _cs.AddBulkAsync(filtered.Select(x => ulong.Parse(x.User)), 
+                    filtered.Select(x => "Mining payout"), 
+                    filtered.Select(x => (long)x.Amount), true);
             }
             catch (Exception ex)
             {

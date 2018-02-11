@@ -221,9 +221,10 @@
   },
   "lsar": {
     "Cmd": "lsar",
-    "Desc": "Lists all self-assignable roles.",
+    "Desc": "Lists self-assignable roles. Shows 20 roles per page.",
     "Usage": [
-      "{0}lsar"
+      "{0}lsar",
+      "{0}lsar 2"
     ]
   },
   "tesar": {
@@ -1107,8 +1108,9 @@
   },
   "rps": {
     "Cmd": "rps",
-    "Desc": "Play a game of Rocket-Paperclip-Scissors with Nadeko.",
+    "Desc": "Play a game of Rocket-Paperclip-Scissors with Nadeko. You can bet on it. Multiplier is the same as on betflip.",
     "Usage": [
+      "{0}rps r 100",
       "{0}rps scissors"
     ]
   },
@@ -1660,7 +1662,7 @@
     ]
   },
   "color": {
-    "Cmd": "color",
+    "Cmd": "color clr",
     "Desc": "Shows you what color corresponds to that hex.",
     "Usage": [
       "{0}color 00ff00"
@@ -2318,7 +2320,7 @@
   },
   "startevent": {
     "Cmd": "startevent",
-    "Desc": "Starts one of the events seen on public nadeko. `reaction` and `sneakygamestatus` are the only 2 available now.",
+    "Desc": "Starts one of the events seen on public nadeko. Events: `reaction`, `sneakygamestatus` and `botlistupvoters` (for which you need botlisttoken in credentials).",
     "Usage": [
       "{0}startevent reaction"
     ]
@@ -2648,8 +2650,9 @@
   },
   "warnclear": {
     "Cmd": "warnclear warnc",
-    "Desc": "Clears all warnings from a certain user.",
+    "Desc": "Clears all warnings from a certain user. You can specify a number to clear a specific one.",
     "Usage": [
+      "{0}warnclear @PoorDude 3",
       "{0}warnclear @PoorDude"
     ]
   },

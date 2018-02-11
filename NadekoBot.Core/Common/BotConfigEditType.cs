@@ -15,14 +15,16 @@
         HelpString,
         CurrencyDropAmount,
         CurrencyDropAmountMax,
-        MinimumBetAmount,
         TriviaCurrencyReward,
         XpPerMessage,
         XpMinutesTimeout,
         PatreonCurrencyPerCent,
-        MinWaifuPrice
-        
-        //ErrorColor, //after i fix the nadekobot.cs static variables
-        //OkColor
+        MinWaifuPrice,
+        WaifuGiftMultiplier,
+        MinimumTriviaWinReq,
+        MinBet,
+        MaxBet,
+        ErrorColor,
+        OkColor
     }
 }
