@@ -1,4 +1,5 @@
 ﻿using Discord;
+using NadekoBot.Common.Collections;
 using System;
 using System.Collections.Generic;
 
@@ -36,6 +37,8 @@ namespace NadekoBot.Core.Services.Database.Models
         public float Betroll100Multiplier { get; set; } = 10;
         public int TimelyCurrency { get; set; } = 0;
         public int TimelyCurrencyPeriod { get; set; } = 0;
+        public float DailyCurrencyDecay { get; set; } = 0;
+        public DateTime LastCurrencyDecay { get; set; } = DateTime.MinValue;
         public int MinWaifuPrice { get; set; } = 50;
         //public HashSet<CommandCost> CommandCosts { get; set; } = new HashSet<CommandCost>();
 
@@ -47,7 +50,7 @@ namespace NadekoBot.Core.Services.Database.Models
         public HashSet<RaceAnimal> RaceAnimals { get; set; } = new HashSet<RaceAnimal>();
 
         public string DMHelpString { get; set; } = "Type `.h` for help.";
-        public string HelpString { get; set; } = @"To add me to your server, use this link -> <https://nadekobot.me/invite>
+        public string HelpString { get; set; } = @"To add me to your server, use this link -> <https://discordapp.com/oauth2/authorize?client_id={0}&scope=bot&permissions=66186303>
 You can use `{1}modules` command to see a list of all modules.
 You can use `{1}commands ModuleName` to see a list of all of the commands in that module.
 (for example `{1}commands Admin`) 
@@ -65,7 +68,7 @@ Nadeko Support Server: https://discord.gg/nadekobot";
         public string OkColor { get; set; } = "00e584";
         public string ErrorColor { get; set; } = "ee281f";
         public string Locale { get; set; } = null;
-        public List<StartupCommand> StartupCommands { get; set; }
+        public IndexedCollection<StartupCommand> StartupCommands { get; set; }
         public HashSet<BlockedCmdOrMdl> BlockedCommands { get; set; }
         public HashSet<BlockedCmdOrMdl> BlockedModules { get; set; }
         public int PermissionVersion { get; set; } = 2;
@@ -81,6 +84,15 @@ Nadeko Support Server: https://discord.gg/nadekobot";
         public int MinBet { get; set; } = 0;
         public int MaxBet { get; set; } = 0;
         public ConsoleOutputType ConsoleOutputType { get; set; } = ConsoleOutputType.Normal;
+
+        public string UpdateString { get; set; } = "New update has been released.";
+        public UpdateCheckType CheckForUpdates { get; set; } = UpdateCheckType.Release;
+        public DateTime LastUpdate { get; set; } = new DateTime(2018, 5, 5, 0, 0, 0, DateTimeKind.Utc);
+    }
+
+    public enum UpdateCheckType
+    {
+        Release, Commit, None
     }
 
     public class BlockedCmdOrMdl : DbEntity
@@ -110,6 +122,7 @@ Nadeko Support Server: https://discord.gg/nadekobot";
         public string GuildName { get; set; }
         public ulong? VoiceChannelId { get; set; }
         public string VoiceChannelName { get; set; }
+        public int Interval { get; set; }
     }
 
     public class PlayingStatus : DbEntity

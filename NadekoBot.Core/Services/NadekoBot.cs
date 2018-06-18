@@ -80,7 +80,11 @@ namespace NadekoBot
             _db = new DbService(Credentials);
             Client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                MessageCacheSize = 10,
+#if GLOBAL_NADEKO
+                MessageCacheSize = 0,
+#else
+                MessageCacheSize = 50,
+#endif
                 LogLevel = LogSeverity.Info,
                 ConnectionTimeout = int.MaxValue,
                 TotalShards = Credentials.TotalShards,
@@ -98,6 +102,7 @@ namespace NadekoBot
                 _botConfig = uow.BotConfig.GetOrCreate();
                 OkColor = new Color(Convert.ToUInt32(_botConfig.OkColor, 16));
                 ErrorColor = new Color(Convert.ToUInt32(_botConfig.ErrorColor, 16));
+                uow.Complete();
             }
 
             SetupShard(parentProcessId);
@@ -289,7 +294,7 @@ namespace NadekoBot
             // start handling messages received in commandhandler
             await commandHandler.StartHandling().ConfigureAwait(false);
 
-            var _ = await CommandService.AddModulesAsync(this.GetType().GetTypeInfo().Assembly);
+            var _ = await CommandService.AddModulesAsync(this.GetType().GetTypeInfo().Assembly, Services);
 
 
             bool isPublicNadeko = false;
@@ -305,9 +310,9 @@ namespace NadekoBot
                     .Where(x => x.Preconditions.Any(y => y.GetType() == typeof(NoPublicBot)))
                     .ForEach(x => CommandService.RemoveModuleAsync(x));
 
-            Ready.TrySetResult(true);
             HandleStatusChanges();
             StartSendingData();
+            Ready.TrySetResult(true);
             _log.Info($"Shard {Client.ShardId} ready.");
         }
 

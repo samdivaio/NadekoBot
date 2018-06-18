@@ -31,6 +31,12 @@ namespace NadekoBot.Modules.Searches
     {
         private readonly IBotCredentials _creds;
         private readonly IGoogleApiService _google;
+        private static readonly NadekoRandom _rng;
+
+        static Searches()
+        {
+            _rng = new NadekoRandom();
+        }
 
         public Searches(IBotCredentials creds, IGoogleApiService google)
         {
@@ -263,11 +269,9 @@ namespace NadekoBot.Modules.Searches
         [NadekoCommand, Usage, Description, Aliases]
         public async Task RandomCat()
         {
-            var res = JObject.Parse(await _service.Http.GetStringAsync("http://aws.random.cat/meow").ConfigureAwait(false));
             await Context.Channel.EmbedAsync(new EmbedBuilder()
                 .WithOkColor()
-                .WithImageUrl(Uri.EscapeUriString(res["file"].ToString())))
-                    .ConfigureAwait(false);
+                .WithImageUrl("https://nadeko-pictures.nyc3.digitaloceanspaces.com/cats/" + _rng.Next(1, 773).ToString("000") + ".png"));
         }
 
         [NadekoCommand, Usage, Description, Aliases]
@@ -275,7 +279,23 @@ namespace NadekoBot.Modules.Searches
         {
             await Context.Channel.EmbedAsync(new EmbedBuilder()
                 .WithOkColor()
-                .WithImageUrl("https://random.dog/" + await _service.Http.GetStringAsync("http://random.dog/woof")));
+                .WithImageUrl("https://nadeko-pictures.nyc3.digitaloceanspaces.com/dogs/" + _rng.Next(1, 750).ToString("000") + ".png"));
+        }
+
+        [NadekoCommand, Usage, Description, Aliases]
+        public async Task RandomFood()
+        {
+            await Context.Channel.EmbedAsync(new EmbedBuilder()
+                .WithOkColor()
+                .WithImageUrl("https://nadeko-pictures.nyc3.digitaloceanspaces.com/food/" + _rng.Next(1,883).ToString("000") + ".png"));
+        }
+
+        [NadekoCommand, Usage, Description, Aliases]
+        public async Task RandomBird()
+        {
+            await Context.Channel.EmbedAsync(new EmbedBuilder()
+                .WithOkColor()
+                .WithImageUrl("https://nadeko-pictures.nyc3.digitaloceanspaces.com/birds/" + _rng.Next(1, 883).ToString("000") + ".png"));
         }
 
         [NadekoCommand, Usage, Description, Aliases]
@@ -306,29 +326,30 @@ namespace NadekoBot.Modules.Searches
 
                 var fullQueryLink = $"http://imgur.com/search?q={ terms }";
                 var config = Configuration.Default.WithDefaultLoader();
-                var document = await BrowsingContext.New(config).OpenAsync(fullQueryLink);
+                using (var document = await BrowsingContext.New(config).OpenAsync(fullQueryLink))
+                {
+                    var elems = document.QuerySelectorAll("a.image-list-link");
 
-                var elems = document.QuerySelectorAll("a.image-list-link");
+                    if (!elems.Any())
+                        return;
 
-                if (!elems.Any())
-                    return;
+                    var img = (elems.FirstOrDefault()?.Children?.FirstOrDefault() as IHtmlImageElement);
 
-                var img = (elems.FirstOrDefault()?.Children?.FirstOrDefault() as IHtmlImageElement);
+                    if (img?.Source == null)
+                        return;
 
-                if (img?.Source == null)
-                    return;
+                    var source = img.Source.Replace("b.", ".");
 
-                var source = img.Source.Replace("b.", ".");
-
-                var embed = new EmbedBuilder()
-                    .WithOkColor()
-                    .WithAuthor(eab => eab.WithName("Image Search For: " + terms.TrimTo(50))
-                        .WithUrl(fullQueryLink)
-                        .WithIconUrl("http://s.imgur.com/images/logo-1200-630.jpg?"))
-                    .WithDescription(source)
-                    .WithImageUrl(source)
-                    .WithTitle(Context.User.ToString());
-                await Context.Channel.EmbedAsync(embed).ConfigureAwait(false);
+                    var embed = new EmbedBuilder()
+                        .WithOkColor()
+                        .WithAuthor(eab => eab.WithName("Image Search For: " + terms.TrimTo(50))
+                            .WithUrl(fullQueryLink)
+                            .WithIconUrl("http://s.imgur.com/images/logo-1200-630.jpg?"))
+                        .WithDescription(source)
+                        .WithImageUrl(source)
+                        .WithTitle(Context.User.ToString());
+                    await Context.Channel.EmbedAsync(embed).ConfigureAwait(false);
+                }
             }
         }
 
@@ -359,29 +380,30 @@ namespace NadekoBot.Modules.Searches
 
                 var fullQueryLink = $"http://imgur.com/search?q={ terms }";
                 var config = Configuration.Default.WithDefaultLoader();
-                var document = await BrowsingContext.New(config).OpenAsync(fullQueryLink);
+                using (var document = await BrowsingContext.New(config).OpenAsync(fullQueryLink))
+                {
+                    var elems = document.QuerySelectorAll("a.image-list-link").ToList();
 
-                var elems = document.QuerySelectorAll("a.image-list-link").ToList();
+                    if (!elems.Any())
+                        return;
 
-                if (!elems.Any())
-                    return;
+                    var img = (elems.ElementAtOrDefault(new NadekoRandom().Next(0, elems.Count))?.Children?.FirstOrDefault() as IHtmlImageElement);
 
-                var img = (elems.ElementAtOrDefault(new NadekoRandom().Next(0, elems.Count))?.Children?.FirstOrDefault() as IHtmlImageElement);
+                    if (img?.Source == null)
+                        return;
 
-                if (img?.Source == null)
-                    return;
+                    var source = img.Source.Replace("b.", ".");
 
-                var source = img.Source.Replace("b.", ".");
-
-                var embed = new EmbedBuilder()
-                    .WithOkColor()
-                    .WithAuthor(eab => eab.WithName(GetText("image_search_for") + " " + terms.TrimTo(50))
-                        .WithUrl(fullQueryLink)
-                        .WithIconUrl("http://s.imgur.com/images/logo-1200-630.jpg?"))
-                    .WithDescription(source)
-                    .WithImageUrl(source)
-                    .WithTitle(Context.User.ToString());
-                await Context.Channel.EmbedAsync(embed).ConfigureAwait(false);
+                    var embed = new EmbedBuilder()
+                        .WithOkColor()
+                        .WithAuthor(eab => eab.WithName(GetText("image_search_for") + " " + terms.TrimTo(50))
+                            .WithUrl(fullQueryLink)
+                            .WithIconUrl("http://s.imgur.com/images/logo-1200-630.jpg?"))
+                        .WithDescription(source)
+                        .WithImageUrl(source)
+                        .WithTitle(Context.User.ToString());
+                    await Context.Channel.EmbedAsync(embed).ConfigureAwait(false);
+                }
             }
         }
 
@@ -431,47 +453,48 @@ namespace NadekoBot.Modules.Searches
 
             var fullQueryLink = $"https://www.google.ca/search?q={ terms }&gws_rd=cr,ssl&cr=countryUS";
             var config = Configuration.Default.WithDefaultLoader();
-            var document = await BrowsingContext.New(config).OpenAsync(fullQueryLink);
-
-            var elems = document.QuerySelectorAll("div.g");
-
-            var resultsElem = document.QuerySelectorAll("#resultStats").FirstOrDefault();
-            var totalResults = resultsElem?.TextContent;
-            //var time = resultsElem.Children.FirstOrDefault()?.TextContent
-            //^ this doesn't work for some reason, <nobr> is completely missing in parsed collection
-            if (!elems.Any())
-                return;
-
-            var results = elems.Select<IElement, GoogleSearchResult?>(elem =>
+            using (var document = await BrowsingContext.New(config).OpenAsync(fullQueryLink))
             {
-                var aTag = (elem.Children.FirstOrDefault()?.Children.FirstOrDefault() as IHtmlAnchorElement); // <h3> -> <a>
-                var href = aTag?.Href;
-                var name = aTag?.TextContent;
-                if (href == null || name == null)
-                    return null;
+                var elems = document.QuerySelectorAll("div.g");
 
-                var txt = elem.QuerySelectorAll(".st").FirstOrDefault()?.TextContent;
+                var resultsElem = document.QuerySelectorAll("#resultStats").FirstOrDefault();
+                var totalResults = resultsElem?.TextContent;
+                //var time = resultsElem.Children.FirstOrDefault()?.TextContent
+                //^ this doesn't work for some reason, <nobr> is completely missing in parsed collection
+                if (!elems.Any())
+                    return;
 
-                if (txt == null)
-                    return null;
+                var results = elems.Select<IElement, GoogleSearchResult?>(elem =>
+                {
+                    var aTag = (elem.Children.FirstOrDefault()?.Children.FirstOrDefault() as IHtmlAnchorElement); // <h3> -> <a>
+                    var href = aTag?.Href;
+                    var name = aTag?.TextContent;
+                    if (href == null || name == null)
+                        return null;
 
-                return new GoogleSearchResult(name, href, txt);
-            }).Where(x => x != null).Take(5);
+                    var txt = elem.QuerySelectorAll(".st").FirstOrDefault()?.TextContent;
 
-            var embed = new EmbedBuilder()
-                .WithOkColor()
-                .WithAuthor(eab => eab.WithName(GetText("search_for") + " " + terms.TrimTo(50))
-                    .WithUrl(fullQueryLink)
-                    .WithIconUrl("http://i.imgur.com/G46fm8J.png"))
-                .WithTitle(Context.User.ToString())
-                .WithFooter(efb => efb.WithText(totalResults));
+                    if (txt == null)
+                        return null;
 
-            var desc = await Task.WhenAll(results.Select(async res =>
-                    $"[{Format.Bold(res?.Title)}]({(await _google.ShortenUrl(res?.Link))})\n{res?.Text?.TrimTo(400 - res.Value.Title.Length - res.Value.Link.Length)}\n\n"))
-                .ConfigureAwait(false);
-            var descStr = string.Concat(desc);
-            _log.Info(descStr.Length);
-            await Context.Channel.EmbedAsync(embed.WithDescription(descStr)).ConfigureAwait(false);
+                    return new GoogleSearchResult(name, href, txt);
+                }).Where(x => x != null).Take(5);
+
+                var embed = new EmbedBuilder()
+                    .WithOkColor()
+                    .WithAuthor(eab => eab.WithName(GetText("search_for") + " " + terms.TrimTo(50))
+                        .WithUrl(fullQueryLink)
+                        .WithIconUrl("http://i.imgur.com/G46fm8J.png"))
+                    .WithTitle(Context.User.ToString())
+                    .WithFooter(efb => efb.WithText(totalResults));
+
+                var desc = await Task.WhenAll(results.Select(async res =>
+                        $"[{Format.Bold(res?.Title)}]({(await _google.ShortenUrl(res?.Link))})\n{res?.Text?.TrimTo(400 - res.Value.Title.Length - res.Value.Link.Length)}\n\n"))
+                    .ConfigureAwait(false);
+                var descStr = string.Concat(desc);
+                _log.Info(descStr.Length);
+                await Context.Channel.EmbedAsync(embed.WithDescription(descStr)).ConfigureAwait(false);
+            }
         }
 
         [NadekoCommand, Usage, Description, Aliases]
@@ -671,10 +694,10 @@ namespace NadekoBot.Modules.Searches
             var embed = new EmbedBuilder().WithOkColor()
                 .WithTitle(GetText("define") + " " + word)
                 .WithDescription(definition)
-                .WithFooter(efb => efb.WithText(sense.Gramatical_info?.type));
+                .WithFooter(efb => efb.WithText(sense.Gramatical_info?.Type));
 
             if (sense.Examples != null)
-                embed.AddField(efb => efb.WithName(GetText("example")).WithValue(sense.Examples.First().text));
+                embed.AddField(efb => efb.WithName(GetText("example")).WithValue(sense.Examples.First().Text));
 
             await Context.Channel.EmbedAsync(embed).ConfigureAwait(false);
 
@@ -773,23 +796,14 @@ namespace NadekoBot.Modules.Searches
         }
 
         [NadekoCommand, Usage, Description, Aliases]
-        public async Task Color(params string[] colors)
+        public async Task Color(params Rgba32[] colors)
         {
             if (!colors.Any())
                 return;
 
-            var colorObjects = colors.Take(10).Select(x => x.Trim().Replace("#", ""))
-                .Select(x =>
-                {
-                    try
-                    {
-                        return Rgba32.FromHex(x);
-                    }
-                    catch
-                    {
-                        return Rgba32.FromHex("000");
-                    }
-                }).ToArray();
+            var colorObjects = colors.Take(10)
+                .ToArray();
+
             using (var img = new Image<Rgba32>(colorObjects.Length * 50, 50))
             {
                 for (int i = 0; i < colorObjects.Length; i++)
