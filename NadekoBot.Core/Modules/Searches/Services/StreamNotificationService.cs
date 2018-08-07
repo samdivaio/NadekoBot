@@ -7,6 +7,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
+using NadekoBot.Common;
 using NadekoBot.Common.Collections;
 using NadekoBot.Core.Services;
 using NadekoBot.Core.Services.Database.Models;
@@ -29,24 +31,35 @@ namespace NadekoBot.Modules.Searches.Services
         private readonly IDataCache _cache;
         private readonly HttpClient _http;
         private readonly Logger _log;
+        private readonly IBotCredentials _creds;
+        private readonly Random _rng = new NadekoRandom();
         private readonly ConcurrentDictionary<
             (FollowedStream.FType Type, string Username),
             ConcurrentHashSet<(ulong GuildId, FollowedStream fs)>> _followedStreams;
+        private readonly ConcurrentHashSet<ulong> _yesOffline = new ConcurrentHashSet<ulong>();
 
         public StreamNotificationService(NadekoBot bot, DbService db, DiscordSocketClient client,
-            NadekoStrings strings, IDataCache cache)
+            NadekoStrings strings, IDataCache cache, IBotCredentials creds, IHttpClientFactory factory)
         {
             _db = db;
             _client = client;
             _strings = strings;
             _cache = cache;
-            _http = new HttpClient();
+            _creds = creds;
+            _http = factory.CreateClient();
+            _http.DefaultRequestHeaders.TryAddWithoutValidation("Client-ID", _creds.TwitchClientId);
             _log = LogManager.GetCurrentClassLogger();
 
-            _followedStreams = bot.AllGuildConfigs.SelectMany(x => x.FollowedStreams)
+#if !GLOBAL_NADEKO
+            _followedStreams = bot.AllGuildConfigs
+                .SelectMany(x => x.FollowedStreams)
                 .GroupBy(x => (x.Type, x.Username))
                 .ToDictionary(x => x.Key, x => new ConcurrentHashSet<(ulong, FollowedStream)>(x.Select(y => (y.GuildId, y))))
                 .ToConcurrent();
+
+            _yesOffline = new ConcurrentHashSet<ulong>(bot.AllGuildConfigs
+                .Where(x => x.NotifyStreamOffline)
+                .Select(x => x.GuildId));
 
             _cache.SubscribeToStreamUpdates(OnStreamsUpdated);
 
@@ -54,7 +67,7 @@ namespace NadekoBot.Modules.Searches.Services
             {
                 var _ = Task.Run(async () =>
                 {
-                    await Task.Delay(20000);
+                    await Task.Delay(20000).ConfigureAwait(false);
                     var sw = Stopwatch.StartNew();
                     while (true)
                     {
@@ -62,10 +75,10 @@ namespace NadekoBot.Modules.Searches.Services
                         try
                         {
                             // get old statuses' live data
-                            var oldStreamStatuses = (await _cache.GetAllStreamDataAsync())
+                            var oldStreamStatuses = (await _cache.GetAllStreamDataAsync().ConfigureAwait(false))
                                 .ToDictionary(x => x.ApiUrl, x => x.Live);
                             // clear old statuses
-                            await _cache.ClearAllStreamData();
+                            await _cache.ClearAllStreamData().ConfigureAwait(false);
                             // get a list of streams which are followed right now.
                             IEnumerable<FollowedStream> fss;
                             using (var uow = _db.UnitOfWork)
@@ -75,7 +88,7 @@ namespace NadekoBot.Modules.Searches.Services
                                 uow.Complete();
                             }
                             // get new statuses for those streams
-                            var newStatuses = (await Task.WhenAll(fss.Select(f => GetStreamStatus(f.Type, f.Username, false))))
+                            var newStatuses = (await Task.WhenAll(fss.Select(f => GetStreamStatus(f.Type, f.Username, false))).ConfigureAwait(false))
                                 .Where(x => x != null);
                             if (_firstStreamNotifPass)
                             {
@@ -96,7 +109,7 @@ namespace NadekoBot.Modules.Searches.Services
                             // publish the list
                             if (toPublish.Any())
                             {
-                                await _cache.PublishStreamUpdates(toPublish);
+                                await _cache.PublishStreamUpdates(toPublish).ConfigureAwait(false);
                                 sw.Stop();
                                 _log.Info("Retreived and published stream statuses in {0:F2}s", sw.Elapsed.TotalSeconds);
                             }
@@ -107,11 +120,12 @@ namespace NadekoBot.Modules.Searches.Services
                         }
                         finally
                         {
-                            await Task.Delay(30000);
+                            await Task.Delay(30000).ConfigureAwait(false);
                         }
                     }
                 });
             }
+#endif
         }
 
         private async Task OnStreamsUpdated(StreamResponse[] updates)
@@ -124,18 +138,42 @@ namespace NadekoBot.Modules.Searches.Services
                 if (_followedStreams.TryGetValue((u.StreamType, u.Name.Trim().ToLowerInvariant()), out var locs))
                 {
                     // notify them all
-                    var tasks = locs.Select(x =>
+                    var tasks = locs
+                        .Where(x => u.Live || _yesOffline.Contains(x.GuildId))
+                        .Select(x =>
                     {
+                        string msg;
+                        if (!u.Live || string.IsNullOrWhiteSpace(x.fs.Message))
+                        {
+                            msg = "";
+                        }
+                        else
+                        {
+                            msg = x.fs.Message;
+                        }
                         return _client.GetGuild(x.GuildId)
                             ?.GetTextChannel(x.fs.ChannelId)
-                            ?.EmbedAsync(GetEmbed(x.fs, u, x.GuildId));
+                            ?.EmbedAsync(GetEmbed(x.fs, u), msg: msg);
                     }).Where(x => x != null);
 
                     sendTasks.AddRange(tasks);
                 }
             }
             // wait for all messages to be sent out
-            await Task.WhenAll(sendTasks);
+            await Task.WhenAll(sendTasks).ConfigureAwait(false);
+        }
+
+        public int ClearAllStreams(ulong guildId)
+        {
+            int count;
+            using (var uow = _db.UnitOfWork)
+            {
+                var gc = uow.GuildConfigs.ForId(guildId, set => set.Include(x => x.FollowedStreams));
+                count = gc.FollowedStreams.Count;
+                gc.FollowedStreams.Clear();
+                uow.Complete();
+            }
+            return count;
         }
 
         public async Task<StreamResponse> GetStreamStatus(FollowedStream.FType t, string username, bool checkCache = true)
@@ -146,7 +184,7 @@ namespace NadekoBot.Modules.Searches.Services
             switch (t)
             {
                 case FollowedStream.FType.Twitch:
-                    url = $"https://api.twitch.tv/kraken/streams/{Uri.EscapeUriString(username)}?client_id=67w6z9i09xv2uoojdm9l0wsyph4hxo6";
+                    url = $"https://api.twitch.tv/kraken/streams/{Uri.EscapeUriString(username)}";
                     type = typeof(TwitchResponse);
                     break;
                 case FollowedStream.FType.Smashcast:
@@ -188,7 +226,7 @@ namespace NadekoBot.Modules.Searches.Services
                     Viewers = data.Viewers,
                     Preview = data.Preview,
                 };
-                await _cache.SetStreamDataAsync(url, JsonConvert.SerializeObject(sr));
+                await _cache.SetStreamDataAsync(url, JsonConvert.SerializeObject(sr)).ConfigureAwait(false);
                 return sr;
             }
             catch (StreamNotFoundException ex)
@@ -203,6 +241,53 @@ namespace NadekoBot.Modules.Searches.Services
             }
         }
 
+        public bool SetStreamMessage(ulong guildId, string name, FollowedStream.FType type, string message)
+        {
+            name = name.ToLowerInvariant();
+            IEnumerable<FollowedStream> streams;
+            using (var uow = _db.UnitOfWork)
+            {
+                streams = uow.GuildConfigs
+                    .ForId(guildId, set => set.Include(x => x.FollowedStreams))
+                    .FollowedStreams;
+
+                var stream = streams.FirstOrDefault(x => x.Username.Trim().ToLowerInvariant() == name.Trim().ToLowerInvariant() && x.Type == type);
+                if (stream == null)
+                    return false;
+
+                stream.Message = message;
+
+                uow.Complete();
+            }
+            var newVal = new ConcurrentHashSet<(ulong GuildId, FollowedStream fs)>(streams.Select(x => (x.GuildId, x)));
+            _followedStreams.AddOrUpdate((type, name),
+                newVal,
+                (key, old) => newVal);
+            return true;
+        }
+
+        public bool ToggleStreamOffline(ulong guildId)
+        {
+            bool val;
+            using (var uow = _db.UnitOfWork)
+            {
+                var config = uow.GuildConfigs
+                    .ForId(guildId, set => set);
+
+                val = config.NotifyStreamOffline = !config.NotifyStreamOffline;
+                uow.Complete();
+            }
+            if (val)
+            {
+                _yesOffline.Add(guildId);
+            }
+            else
+            {
+                _yesOffline.TryRemove(guildId);
+            }
+            return val;
+        }
+
         public void UntrackStream(FollowedStream fs)
         {
             if (_followedStreams.TryGetValue((fs.Type, fs.Username), out var data))
@@ -211,7 +296,7 @@ namespace NadekoBot.Modules.Searches.Services
             }
         }
 
-        public EmbedBuilder GetEmbed(FollowedStream fs, IStreamResponse status, ulong guildId)
+        public EmbedBuilder GetEmbed(FollowedStream fs, IStreamResponse status)
         {
             var embed = new EmbedBuilder()
                 .WithTitle(fs.Username)
@@ -241,7 +326,7 @@ namespace NadekoBot.Modules.Searches.Services
                 embed.WithThumbnailUrl(status.Icon);
 
             if (!string.IsNullOrWhiteSpace(status.Preview))
-                embed.WithImageUrl(status.Preview);
+                embed.WithImageUrl(status.Preview + "?dv=" + _rng.Next());
 
             return embed;
         }

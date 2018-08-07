@@ -21,7 +21,7 @@ namespace NadekoBot.Core.Services.Impl
 
         private readonly string _redisKey;
 
-        public RedisCache(IBotCredentials creds)
+        public RedisCache(IBotCredentials creds, int shardId)
         {
             _log = LogManager.GetCurrentClassLogger();
             var conf = ConfigurationOptions.Parse("127.0.0.1");
@@ -29,7 +29,7 @@ namespace NadekoBot.Core.Services.Impl
             Redis = ConnectionMultiplexer.Connect(conf);
             Redis.PreserveAsyncOrder = false;
             LocalImages = new RedisImagesCache(Redis, creds);
-            LocalData = new RedisLocalDataCache(Redis, creds);
+            LocalData = new RedisLocalDataCache(Redis, creds, shardId);
             _redisKey = creds.RedisKey();
         }
 
@@ -37,14 +37,14 @@ namespace NadekoBot.Core.Services.Impl
         // because it's a good thing if different bots 
         // which are hosted on the same PC
         // can re-use the same image/anime data
-        public async Task<(bool Success, byte[] Data)> TryGetImageDataAsync(string key)
+        public async Task<(bool Success, byte[] Data)> TryGetImageDataAsync(Uri key)
         {
             var _db = Redis.GetDatabase();
-            byte[] x = await _db.StringGetAsync("image_" + key);
+            byte[] x = await _db.StringGetAsync("image_" + key).ConfigureAwait(false);
             return (x != null, x);
         }
 
-        public Task SetImageDataAsync(string key, byte[] data)
+        public Task SetImageDataAsync(Uri key, byte[] data)
         {
             var _db = Redis.GetDatabase();
             return _db.StringSetAsync("image_" + key, data);
@@ -53,27 +53,27 @@ namespace NadekoBot.Core.Services.Impl
         public async Task<(bool Success, string Data)> TryGetAnimeDataAsync(string key)
         {
             var _db = Redis.GetDatabase();
-            string x = await _db.StringGetAsync("anime_" + key);
+            string x = await _db.StringGetAsync("anime_" + key).ConfigureAwait(false);
             return (x != null, x);
         }
 
         public Task SetAnimeDataAsync(string key, string data)
         {
             var _db = Redis.GetDatabase();
-            return _db.StringSetAsync("anime_" + key, data);
+            return _db.StringSetAsync("anime_" + key, data, expiry: TimeSpan.FromHours(3));
         }
 
         public async Task<(bool Success, string Data)> TryGetNovelDataAsync(string key)
         {
             var _db = Redis.GetDatabase();
-            string x = await _db.StringGetAsync("novel_" + key);
+            string x = await _db.StringGetAsync("novel_" + key).ConfigureAwait(false);
             return (x != null, x);
         }
 
         public Task SetNovelDataAsync(string key, string data)
         {
             var _db = Redis.GetDatabase();
-            return _db.StringSetAsync("novel_" + key, data);
+            return _db.StringSetAsync("novel_" + key, data, expiry: TimeSpan.FromHours(3));
         }
 
         private readonly object timelyLock = new object();
@@ -133,7 +133,7 @@ namespace NadekoBot.Core.Services.Impl
         public Task SetStreamDataAsync(string url, string data)
         {
             var _db = Redis.GetDatabase();
-            return _db.StringSetAsync($"{_redisKey}_stream_{url}", data);
+            return _db.StringSetAsync($"{_redisKey}_stream_{url}", data, expiry: TimeSpan.FromHours(6));
         }
 
         public bool TryGetStreamData(string url, out string dataStr)
@@ -187,7 +187,7 @@ namespace NadekoBot.Core.Services.Impl
         public TimeSpan? TryAddRatelimit(ulong id, string name, int expireIn)
         {
             var _db = Redis.GetDatabase();
-            if(_db.StringSet($"{_redisKey}_ratelimit_{id}_{name}",
+            if (_db.StringSet($"{_redisKey}_ratelimit_{id}_{name}",
                 0, // i don't use the value
                 TimeSpan.FromSeconds(expireIn),
                 When.NotExists))
@@ -196,6 +196,25 @@ namespace NadekoBot.Core.Services.Impl
             }
 
             return _db.KeyTimeToLive($"{_redisKey}_ratelimit_{id}_{name}");
+        }
+
+        public bool TryGetEconomy(out string data)
+        {
+            var _db = Redis.GetDatabase();
+            if ((data = _db.StringGet($"{_redisKey}_economy")) != null)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public void SetEconomy(string data)
+        {
+            var _db = Redis.GetDatabase();
+            _db.StringSetAsync($"{_redisKey}_economy",
+                data,
+                expiry: TimeSpan.FromMinutes(3));
         }
     }
 }

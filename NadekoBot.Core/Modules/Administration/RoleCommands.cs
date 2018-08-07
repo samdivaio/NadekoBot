@@ -6,6 +6,7 @@ using NadekoBot.Common.Attributes;
 using NadekoBot.Core.Services.Database.Models;
 using NadekoBot.Extensions;
 using NadekoBot.Modules.Administration.Services;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,7 +21,7 @@ namespace NadekoBot.Modules.Administration
 
             public async Task InternalReactionRoles(bool exclusive, params string[] input)
             {
-                var msgs = await ((SocketTextChannel)Context.Channel).GetMessagesAsync().FlattenAsync();
+                var msgs = await ((SocketTextChannel)Context.Channel).GetMessagesAsync().FlattenAsync().ConfigureAwait(false);
                 var prev = (IUserMessage)msgs.FirstOrDefault(x => x is IUserMessage && x.Id != Context.Message.Id);
 
                 if (prev == null)
@@ -127,7 +128,7 @@ namespace NadekoBot.Modules.Administration
                     foreach (var rr in rrs)
                     {
                         var ch = g.GetTextChannel(rr.ChannelId);
-                        var msg = (await ch?.GetMessageAsync(rr.MessageId)) as IUserMessage;
+                        var msg = (await (ch?.GetMessageAsync(rr.MessageId)).ConfigureAwait(false)) as IUserMessage;
                         var content = msg?.Content.TrimTo(30) ?? "DELETED!"; 
                         embed.AddField($"**{rr.Index + 1}.** {(ch?.Name ?? "DELETED!")}", 
                             GetText("reaction_roles_message", rr.ReactionRoles?.Count ?? 0, content));
@@ -288,7 +289,7 @@ namespace NadekoBot.Modules.Administration
             [Priority(1)]
             public async Task RoleColor([Remainder] IRole role)
             {
-                await Context.Channel.SendConfirmAsync("Role Color", role.Color.RawValue.ToString("X"));
+                await Context.Channel.SendConfirmAsync("Role Color", role.Color.RawValue.ToString("X")).ConfigureAwait(false);
             }
 
             [NadekoCommand, Usage, Description, Aliases]
@@ -296,31 +297,11 @@ namespace NadekoBot.Modules.Administration
             [RequireUserPermission(GuildPermission.ManageRoles)]
             [RequireBotPermission(GuildPermission.ManageRoles)]
             [Priority(0)]
-            public async Task RoleColor(params string[] args)
+            public async Task RoleColor(IRole role, Rgba32 color)
             {
-                if (args.Length != 2 && args.Length != 4)
-                {
-                    await ReplyErrorLocalized("rc_params").ConfigureAwait(false);
-                    return;
-                }
-                var roleName = args[0].ToUpperInvariant();
-                var role = Context.Guild.Roles.FirstOrDefault(r => r.Name.ToUpperInvariant() == roleName);
-
-                if (role == null)
-                {
-                    await ReplyErrorLocalized("rc_not_exist").ConfigureAwait(false);
-                    return;
-                }
                 try
                 {
-                    var rgb = args.Length == 4;
-                    var arg1 = args[1].Replace("#", "");
-
-                    var red = Convert.ToByte(rgb ? int.Parse(arg1) : Convert.ToInt32(arg1.Substring(0, 2), 16));
-                    var green = Convert.ToByte(rgb ? int.Parse(args[2]) : Convert.ToInt32(arg1.Substring(2, 2), 16));
-                    var blue = Convert.ToByte(rgb ? int.Parse(args[3]) : Convert.ToInt32(arg1.Substring(4, 2), 16));
-
-                    await role.ModifyAsync(r => r.Color = new Color(red, green, blue)).ConfigureAwait(false);
+                    await role.ModifyAsync(r => r.Color = new Color(color.R, color.G, color.B)).ConfigureAwait(false);
                     await ReplyConfirmLocalized("rc", Format.Bold(role.Name)).ConfigureAwait(false);
                 }
                 catch (Exception)
@@ -337,13 +318,13 @@ namespace NadekoBot.Modules.Administration
             {
                 if(!role.IsMentionable)
                 {
-                    await role.ModifyAsync(x => x.Mentionable = true);
-                    await Context.Channel.SendMessageAsync(role.Mention);
-                    await role.ModifyAsync(x => x.Mentionable = false);
+                    await role.ModifyAsync(x => x.Mentionable = true).ConfigureAwait(false);
+                    await Context.Channel.SendMessageAsync(role.Mention).ConfigureAwait(false);
+                    await role.ModifyAsync(x => x.Mentionable = false).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Context.Channel.SendMessageAsync(role.Mention);
+                    await Context.Channel.SendMessageAsync(role.Mention).ConfigureAwait(false);
                 }
             }
         }

@@ -5,7 +5,6 @@ using Discord;
 using Discord.Commands;
 using NadekoBot.Common.Attributes;
 using NadekoBot.Core.Modules.Administration.Services;
-using NadekoBot.Core.Services;
 using NadekoBot.Extensions;
 
 namespace NadekoBot.Modules.Administration
@@ -15,13 +14,6 @@ namespace NadekoBot.Modules.Administration
         [Group]
         public class SelfAssignedRolesCommands : NadekoSubmodule<SelfAssignedRolesService>
         {
-            private readonly DbService _db;
-
-            public SelfAssignedRolesCommands(DbService db)
-            {
-                _db = db;
-            }
-
             [NadekoCommand, Usage, Description, Aliases]
             [RequireContext(ContextType.Guild)]
             [RequireUserPermission(GuildPermission.ManageMessages)]
@@ -29,8 +21,8 @@ namespace NadekoBot.Modules.Administration
             public async Task AdSarm()
             {
                 var newVal = _service.ToggleAdSarm(Context.Guild.Id);
-                
-                if(newVal)
+
+                if (newVal)
                 {
                     await ReplyConfirmLocalized("adsarm_enable", Prefix).ConfigureAwait(false);
                 }
@@ -74,6 +66,27 @@ namespace NadekoBot.Modules.Administration
             [NadekoCommand, Usage, Description, Aliases]
             [RequireContext(ContextType.Guild)]
             [RequireUserPermission(GuildPermission.ManageRoles)]
+            [RequireBotPermission(GuildPermission.ManageRoles)]
+            [Priority(0)]
+            public async Task Sargn(int group, [Remainder] string name = null)
+            {
+                var guser = (IGuildUser)Context.User;
+
+                var set = await _service.SetNameAsync(Context.Guild.Id, group, name).ConfigureAwait(false);
+
+                if (set)
+                {
+                    await ReplyConfirmLocalized("group_name_added", Format.Bold(group.ToString()), Format.Bold(name.ToString())).ConfigureAwait(false);
+                }
+                else
+                {
+                    await ReplyConfirmLocalized("group_name_removed", Format.Bold(group.ToString())).ConfigureAwait(false);
+                }
+            }
+
+            [NadekoCommand, Usage, Description, Aliases]
+            [RequireContext(ContextType.Guild)]
+            [RequireUserPermission(GuildPermission.ManageRoles)]
             public async Task Rsar([Remainder] IRole role)
             {
                 var guser = (IGuildUser)Context.User;
@@ -98,35 +111,56 @@ namespace NadekoBot.Modules.Administration
                 if (--page < 0)
                     return;
 
-                var (exclusive, roles) = _service.GetRoles(Context.Guild, page);
+                var (exclusive, roles, groups) = _service.GetRoles(Context.Guild);
 
-                var rolesStr = new StringBuilder();
-
-                foreach (var kvp in roles.GroupBy(x => x.Model.Group))
+                await Context.SendPaginatedConfirmAsync(page, (cur) =>
                 {
-                    rolesStr.AppendLine("\t\t\t\t『" + Format.Bold(GetText("self_assign_group", kvp.Key)) + "』");
-                    foreach (var (Model, Role) in kvp.AsEnumerable())
+                    var rolesStr = new StringBuilder();
+                    var roleGroups = roles
+                        .OrderBy(x => x.Model.Group)
+                        .Skip(cur * 20)
+                        .Take(20)
+                        .GroupBy(x => x.Model.Group)
+                        .OrderBy(x => x.Key);
+
+                    foreach (var kvp in roleGroups)
                     {
-                        if (Role == null)
+                        var groupNameText = "";
+                        if (!groups.TryGetValue(kvp.Key, out var name))
                         {
-                            continue;
+                            groupNameText = Format.Bold(GetText("self_assign_group", kvp.Key));
                         }
                         else
                         {
-                            if (Model.LevelRequirement == 0)
-                                rolesStr.AppendLine(Format.Bold(Role.Name));
-                            else
-                                rolesStr.AppendLine(Format.Bold(Role.Name) + $" (lvl {Model.LevelRequirement}+)");
+                            groupNameText = Format.Bold($"{kvp.Key} - {name.TrimTo(25, true)}");
                         }
-                    }
-                }
 
-                await Context.Channel.SendConfirmAsync("",
-                    Format.Bold(GetText("self_assign_list", roles.Count()))
-                    + "\n\n" + rolesStr.ToString(),
-                    footer: exclusive
-                    ? GetText("self_assign_are_exclusive")
-                    : GetText("self_assign_are_not_exclusive")).ConfigureAwait(false);
+                        rolesStr.AppendLine("\t\t\t\t ⟪" + groupNameText + "⟫");
+                        foreach (var (Model, Role) in kvp.AsEnumerable())
+                        {
+                            if (Role == null)
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                // first character is invisible space
+                                if (Model.LevelRequirement == 0)
+                                    rolesStr.AppendLine("‌‌   " + Role.Name);
+                                else
+                                    rolesStr.AppendLine("‌‌   " + Role.Name + $" (lvl {Model.LevelRequirement}+)");
+                            }
+                        }
+                        rolesStr.AppendLine();
+                    }
+
+                    return new EmbedBuilder().WithOkColor()
+                        .WithTitle(Format.Bold(GetText("self_assign_list", roles.Count())))
+                        .WithDescription(rolesStr.ToString())
+                        .WithFooter(exclusive
+                            ? GetText("self_assign_are_exclusive")
+                            : GetText("self_assign_are_not_exclusive"));
+                }, roles.Count(), 20).ConfigureAwait(false);
             }
 
             [NadekoCommand, Usage, Description, Aliases]
@@ -170,7 +204,7 @@ namespace NadekoBot.Modules.Administration
             {
                 var guildUser = (IGuildUser)Context.User;
 
-                var (result, autoDelete, extra) = await _service.Assign(guildUser, role);
+                var (result, autoDelete, extra) = await _service.Assign(guildUser, role).ConfigureAwait(false);
 
                 IUserMessage msg;
                 if (result == SelfAssignedRolesService.AssignResult.Err_Not_Assignable)
@@ -207,7 +241,7 @@ namespace NadekoBot.Modules.Administration
             {
                 var guildUser = (IGuildUser)Context.User;
 
-                var (result, autoDelete) = await _service.Remove(guildUser, role);
+                var (result, autoDelete) = await _service.Remove(guildUser, role).ConfigureAwait(false);
 
                 IUserMessage msg;
                 if (result == SelfAssignedRolesService.RemoveResult.Err_Not_Assignable)

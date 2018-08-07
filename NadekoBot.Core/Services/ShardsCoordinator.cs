@@ -80,7 +80,15 @@ namespace NadekoBot.Core.Services
             _key = _creds.RedisKey();
             _redis = ConnectionMultiplexer.Connect("127.0.0.1");
 
-            new RedisImagesCache(_redis, _creds).Reload().GetAwaiter().GetResult(); //reload images into redis
+            var imgCache = new RedisImagesCache(_redis, _creds); //reload images into redis
+            if (!imgCache.AllKeysExist().GetAwaiter().GetResult()) // but only if the keys don't exist. If images exist, you have to reload them manually
+            {
+                imgCache.Reload().GetAwaiter().GetResult();
+            }
+            else
+            {
+                _log.Info("Images are already present in redis. Use .imagesreload to force update if needed.");
+            }
 
             //setup initial shard statuses
             _defaultShardState = new ShardComMessage()
@@ -94,7 +102,10 @@ namespace NadekoBot.Core.Services
             db.KeyDelete(_key + "_shardstats");
 
             _shardProcesses = new Process[_creds.TotalShards];
-            for (int i = 0; i < _creds.TotalShards; i++)
+            var shardIds = Enumerable.Range(1, _creds.TotalShards - 1)
+                .Shuffle()
+                .Prepend(0);
+            foreach (var i in shardIds)
             {
                 //add it to the list of shards which should be started
 #if DEBUG
@@ -235,7 +246,7 @@ namespace NadekoBot.Core.Services
                             _log.Warn("Auto-restarting shard {0}", id);
                         }
                         var rem = _shardProcesses[id];
-                        if(rem != null)
+                        if (rem != null)
                         {
                             try
                             {
@@ -294,7 +305,7 @@ namespace NadekoBot.Core.Services
                                 _shardStartQueue.Enqueue(s.ShardId);
 
                                 //to prevent shards which are already scheduled for restart to be scheduled again
-                                s.Time = DateTime.UtcNow + TimeSpan.FromSeconds(30 * _shardStartQueue.Count);
+                                s.Time = DateTime.UtcNow + TimeSpan.FromSeconds(60 * _shardStartQueue.Count);
                                 db.ListSetByIndex(_key + "_shardstats", s.ShardId,
                                     JsonConvert.SerializeObject(s), CommandFlags.FireAndForget);
                                 _log.Warn("Shard {0} is scheduled for a restart because it's unresponsive.", s.ShardId);
@@ -343,7 +354,7 @@ namespace NadekoBot.Core.Services
                 return;
             }
 
-            await Task.Delay(-1);
+            await Task.Delay(-1).ConfigureAwait(false);
         }
     }
 }

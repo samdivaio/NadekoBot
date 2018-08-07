@@ -11,7 +11,7 @@ using System.IO;
 namespace NadekoBot.Core.Services.Database
 {
     public class NadekoContextFactory : IDesignTimeDbContextFactory<NadekoContext>
-    {        
+    {
         public NadekoContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<NadekoContext>();
@@ -34,7 +34,6 @@ namespace NadekoBot.Core.Services.Database
         public DbSet<MusicPlaylist> MusicPlaylists { get; set; }
         public DbSet<CustomReaction> CustomReactions { get; set; }
         public DbSet<CurrencyTransaction> CurrencyTransactions { get; set; }
-        public DbSet<UserPokeTypes> PokeGame { get; set; }
         public DbSet<WaifuUpdate> WaifuUpdates { get; set; }
         public DbSet<Warning> Warnings { get; set; }
         public DbSet<UserXpStats> UserXpStats { get; set; }
@@ -51,6 +50,7 @@ namespace NadekoBot.Core.Services.Database
         public DbSet<RaceAnimal> RaceAnimals { get; set; }
         public DbSet<RewardedUser> RewardedUsers { get; set; }
         public DbSet<Stake> Stakes { get; set; }
+        public DbSet<PlantedCurrency> PlantedCurrency { get; set; }
 
         public NadekoContext(DbContextOptions<NadekoContext> options) : base(options)
         {
@@ -109,7 +109,7 @@ namespace NadekoBot.Core.Services.Database
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             #region QUOTES
-            
+
             var quoteEntity = modelBuilder.Entity<Quote>();
             quoteEntity.HasIndex(x => x.GuildId);
             quoteEntity.HasIndex(x => x.Keyword);
@@ -123,9 +123,6 @@ namespace NadekoBot.Core.Services.Database
                 .HasIndex(c => c.GuildId)
                 .IsUnique();
 
-            //configEntity.Property(x => x.PermissionRole)
-            //    .HasDefaultValue(null);
-
             modelBuilder.Entity<AntiSpamSetting>()
                 .HasOne(x => x.GuildConfig)
                 .WithOne(x => x.AntiSpamSetting);
@@ -137,8 +134,12 @@ namespace NadekoBot.Core.Services.Database
             modelBuilder.Entity<FeedSub>()
                 .HasAlternateKey(x => new { x.GuildConfigId, x.Url });
 
-            //modelBuilder.Entity<ProtectionIgnoredChannel>()
-            //    .HasAlternateKey(c => new { c.ChannelId, c.ProtectionType });
+            modelBuilder.Entity<PlantedCurrency>()
+                .HasIndex(x => x.MessageId)
+                .IsUnique();
+
+            modelBuilder.Entity<PlantedCurrency>()
+                .HasIndex(x => x.ChannelId);
 
             #endregion
 
@@ -169,13 +170,8 @@ namespace NadekoBot.Core.Services.Database
             botConfigEntity.Property(x => x.ErrorColor)
                 .HasDefaultValue("ee281f");
 
-            //botConfigEntity.Property(x => x.PermissionVersion)
-            //    .HasDefaultValue(2);
-
-            //botConfigEntity
-            //    .HasMany(c => c.ModulePrefixes)
-            //    .WithOne(mp => mp.BotConfig)
-            //    .HasForeignKey(mp => mp.BotConfigId);
+            botConfigEntity.Property(x => x.LastUpdate)
+                .HasDefaultValue(new DateTime(2018, 5, 5, 0, 0, 0, 0, DateTimeKind.Utc));
 
             #endregion
 
@@ -192,27 +188,13 @@ namespace NadekoBot.Core.Services.Database
                 .HasDefaultValue(0);
 
             #endregion
-            
+
             #region Permission
             var permissionEntity = modelBuilder.Entity<Permission>();
             permissionEntity
                 .HasOne(p => p.Next)
                 .WithOne(p => p.Previous)
                 .IsRequired(false);
-            #endregion
-
-            #region LogSettings
-
-            //var logSettingEntity = modelBuilder.Entity<LogSetting>();
-
-            //logSettingEntity
-            //    .HasMany(ls => ls.IgnoredChannels)
-            //    .WithOne(ls => ls.LogSetting)
-            //    .HasPrincipalKey(ls => ls.id;
-
-            //logSettingEntity
-            //    .HasMany(ls => ls.IgnoredVoicePresenceChannelIds)
-            //    .WithOne(ls => ls.LogSetting);
             #endregion
 
             #region MusicPlaylists
@@ -226,27 +208,6 @@ namespace NadekoBot.Core.Services.Database
 
             #endregion
 
-            #region PokeGame
-            var pokeGameEntity = modelBuilder.Entity<UserPokeTypes>();
-
-            pokeGameEntity
-                .HasIndex(pt => pt.UserId)
-                .IsUnique();
-
-
-            #endregion
-
-            #region CommandPrice
-            //well, i failed
-            modelBuilder.Entity<CommandPrice>()
-                .HasIndex(cp => cp.Price)
-                .IsUnique();
-
-            //modelBuilder.Entity<CommandCost>()
-            //    .HasIndex(cp => cp.CommandName)
-            //    .IsUnique();
-            #endregion
-
             #region Waifus
 
             var wi = modelBuilder.Entity<WaifuInfo>();
@@ -255,17 +216,10 @@ namespace NadekoBot.Core.Services.Database
 
             wi.HasIndex(x => x.Price);
             wi.HasIndex(x => x.ClaimerId);
-            //    //.HasForeignKey<WaifuInfo>(w => w.WaifuId)
-            //    //.IsRequired(true);
-
-            //wi.HasOne(x => x.Claimer)
-            //    .WithOne();
-            //    //.HasForeignKey<WaifuInfo>(w => w.ClaimerId)
-            //    //.IsRequired(false);
             #endregion
 
             #region DiscordUser
-            
+
             var du = modelBuilder.Entity<DiscordUser>();
             du.HasAlternateKey(w => w.UserId);
             du.HasOne(x => x.Club)
@@ -278,7 +232,7 @@ namespace NadekoBot.Core.Services.Database
             du.HasIndex(x => x.TotalXp);
             du.HasIndex(x => x.CurrencyAmount);
             du.HasIndex(x => x.UserId);
-                
+
 
             #endregion
 
@@ -309,7 +263,7 @@ namespace NadekoBot.Core.Services.Database
             xps.HasIndex(x => x.GuildId);
             xps.HasIndex(x => x.Xp);
             xps.HasIndex(x => x.AwardedXp);
-            
+
             #endregion
 
             #region XpSettings
@@ -317,7 +271,7 @@ namespace NadekoBot.Core.Services.Database
                 .HasOne(x => x.GuildConfig)
                 .WithOne(x => x.XpSettings);
             #endregion
-            
+
             #region XpRoleReward
             modelBuilder.Entity<XpRoleReward>()
                 .HasIndex(x => new { x.XpSettingsId, x.Level })
@@ -374,6 +328,12 @@ namespace NadekoBot.Core.Services.Database
             #region Reminders
             modelBuilder.Entity<Reminder>()
                 .HasIndex(x => x.DateAdded);
+            #endregion
+
+            #region  GroupName
+            modelBuilder.Entity<GroupName>()
+                .HasIndex(x => x.Number)
+                .IsUnique();
             #endregion
         }
     }

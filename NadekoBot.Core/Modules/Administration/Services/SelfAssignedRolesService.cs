@@ -1,11 +1,11 @@
 ﻿using Discord;
+using Microsoft.EntityFrameworkCore;
 using NadekoBot.Core.Services;
 using NadekoBot.Core.Services.Database.Models;
 using NadekoBot.Modules.Xp.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace NadekoBot.Core.Modules.Administration.Services
@@ -62,7 +62,7 @@ namespace NadekoBot.Core.Modules.Administration.Services
             bool newval;
             using (var uow = _db.UnitOfWork)
             {
-                var config = uow.GuildConfigs.For(guildId, set => set);
+                var config = uow.GuildConfigs.ForId(guildId, set => set);
                 newval = config.AutoDeleteSelfAssignedRoleMessages = !config.AutoDeleteSelfAssignedRoleMessages;
                 uow.Complete();
             }
@@ -131,6 +131,42 @@ namespace NadekoBot.Core.Modules.Administration.Services
             return (AssignResult.Assigned, autoDelete, null);
         }
 
+        public async Task<bool> SetNameAsync(ulong guildId, int group, string name)
+        {
+            bool set = false;
+            using (var uow = _db.UnitOfWork)
+            {
+                var gc = uow.GuildConfigs.ForId(guildId, y => y.Include(x => x.SelfAssignableRoleGroupNames));
+                var toUpdate = gc.SelfAssignableRoleGroupNames.FirstOrDefault(x => x.Number == group);
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    if (toUpdate != null)
+                    {
+                        gc.SelfAssignableRoleGroupNames.Remove(toUpdate);
+                    }
+                }
+                else if (toUpdate == null)
+                {
+                    gc.SelfAssignableRoleGroupNames.Add(new GroupName
+                    {
+                        Name = name,
+                        Number = group,
+                    });
+                    set = true;
+                }
+                else
+                {
+                    toUpdate.Name = name;
+                    set = true;
+                }
+
+                await uow.CompleteAsync();
+            }
+
+            return set;
+        }
+
         public async Task<(RemoveResult Result, bool AutoDelete)> Remove(IGuildUser guildUser, IRole role)
         {
             var (autoDelete, _, roles) = GetAdAndRoles(guildUser.Guild.Id);
@@ -170,7 +206,7 @@ namespace NadekoBot.Core.Modules.Administration.Services
         {
             using (var uow = _db.UnitOfWork)
             {
-                var gc = uow.GuildConfigs.For(guildId, set => set);
+                var gc = uow.GuildConfigs.ForId(guildId, set => set);
                 var autoDelete = gc.AutoDeleteSelfAssignedRoleMessages;
                 var exclusive = gc.ExclusiveSelfAssignedRoles;
                 var roles = uow.SelfAssignedRoles.GetFromGuild(guildId);
@@ -204,7 +240,7 @@ namespace NadekoBot.Core.Modules.Administration.Services
             bool areExclusive;
             using (var uow = _db.UnitOfWork)
             {
-                var config = uow.GuildConfigs.For(guildId, set => set);
+                var config = uow.GuildConfigs.ForId(guildId, set => set);
 
                 areExclusive = config.ExclusiveSelfAssignedRoles = !config.ExclusiveSelfAssignedRoles;
                 uow.Complete();
@@ -212,63 +248,25 @@ namespace NadekoBot.Core.Modules.Administration.Services
             return areExclusive;
         }
 
-        public (bool Exclusive, List<(SelfAssignedRole Model, IRole Role)> roles) GetRoles(IGuild guild, int page)
+        public (bool Exclusive, IEnumerable<(SelfAssignedRole Model, IRole Role)> Roles, IDictionary<int, string> GroupNames) GetRoles(IGuild guild)
         {
             var exclusive = false;
 
-            List<(SelfAssignedRole, IRole)> roles = new List<(SelfAssignedRole, IRole)>();
-            IEnumerable<SelfAssignedRole> roleModels;
+            IEnumerable<(SelfAssignedRole Model, IRole Role)> roles;
+            IDictionary<int, string> groupNames;
             using (var uow = _db.UnitOfWork)
             {
-                exclusive = uow.GuildConfigs.For(guild.Id, set => set)
-                    .ExclusiveSelfAssignedRoles;
-                roleModels = uow.SelfAssignedRoles.GetFromGuild(guild.Id);
-
-                foreach (var rm in roleModels)
-                {
-                    var role = guild.Roles.FirstOrDefault(r => r.Id == rm.RoleId);
-                    if (role == null)
-                    {
-                        uow.SelfAssignedRoles.Remove(rm);
-                    }
-                }
+                var gc = uow.GuildConfigs.ForId(guild.Id, set => set.Include(x => x.SelfAssignableRoleGroupNames));
+                exclusive = gc.ExclusiveSelfAssignedRoles;
+                groupNames = gc.SelfAssignableRoleGroupNames.ToDictionary(x => x.Number, x => x.Name);
+                var roleModels = uow.SelfAssignedRoles.GetFromGuild(guild.Id);
+                roles = roleModels
+                    .Select(x => (Model: x, Role: guild.GetRole(x.RoleId)));
+                uow.SelfAssignedRoles.RemoveRange(roles.Where(x => x.Role == null).Select(x => x.Model).ToArray());
                 uow.Complete();
             }
 
-            var skip = page * 20;
-            foreach (var kvp in roleModels.GroupBy(x => x.Group))
-            {
-                var cnt = kvp.Count();
-                if (skip >= cnt)
-                {
-                    skip -= cnt;
-                    continue;
-                }
-                if (skip < -20)
-                    break;
-                foreach (var roleModel in kvp.AsEnumerable())
-                {
-                    if (skip-- > 0)
-                    {
-                        continue;
-                    }
-                    if (skip < -20)
-                    {
-                        break;
-                    }
-
-                    var role = guild.Roles.FirstOrDefault(r => r.Id == roleModel.RoleId);
-                    if (role == null)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        roles.Add((roleModel, role));
-                    }
-                }
-            }
-            return (exclusive, roles);
+            return (exclusive, roles.Where(x => x.Role != null), groupNames);
         }
     }
 }
