@@ -84,12 +84,13 @@ namespace NadekoBot
 #else
                 MessageCacheSize = 50,
 #endif
-                LogLevel = LogSeverity.Info,
+                LogLevel = LogSeverity.Warning,
                 ConnectionTimeout = int.MaxValue,
                 TotalShards = Credentials.TotalShards,
                 ShardId = shardId,
                 AlwaysDownloadUsers = false,
             });
+
             CommandService = new CommandService(new CommandServiceConfig()
             {
                 CaseSensitiveCommands = false,
@@ -155,6 +156,10 @@ namespace NadekoBot
             using (var uow = _db.UnitOfWork)
             {
                 var sw = Stopwatch.StartNew();
+
+                var _bot = Client.CurrentUser;
+
+                uow.DiscordUsers.EnsureCreated(_bot.Id, _bot.Username, _bot.Discriminator, _bot.AvatarId);
 
                 AllGuildConfigs = uow.GuildConfigs.GetAllGuildConfigs(startingGuildIdList).ToImmutableArray();
 
@@ -358,13 +363,16 @@ namespace NadekoBot
         {
             try
             {
-                File.WriteAllText("test", "test");
-                File.Delete("test");
+                var rng = new NadekoRandom().Next(100000, 1000000);
+                var str = rng.ToString();
+                File.WriteAllText(str, str);
+                File.Delete(str);
             }
             catch
             {
                 _log.Error("You must run the application as an ADMINISTRATOR.");
-                Console.ReadKey();
+                if (!Console.IsInputRedirected)
+                    Console.ReadKey();
                 Environment.Exit(2);
             }
         }

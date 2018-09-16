@@ -12,11 +12,12 @@ using NadekoBot.Extensions;
 using NadekoBot.Core.Services.Database;
 using NadekoBot.Core.Services;
 using NadekoBot.Modules.CustomReactions.Extensions;
-using NadekoBot.Modules.Permissions.Common;
 using NadekoBot.Modules.Permissions.Services;
 using NadekoBot.Core.Services.Impl;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using NadekoBot.Modules.Permissions.Common;
+using System.Diagnostics;
 
 namespace NadekoBot.Modules.CustomReactions.Services
 {
@@ -48,7 +49,7 @@ namespace NadekoBot.Modules.CustomReactions.Services
         private readonly GlobalPermissionService _gperm;
 
         public CustomReactionsService(PermissionService perms, DbService db, NadekoStrings strings,
-            DiscordSocketClient client, CommandHandler cmd, IBotConfigProvider bc, IUnitOfWork uow,
+            DiscordSocketClient client, CommandHandler cmd, IBotConfigProvider bc,
             IDataCache cache, GlobalPermissionService gperm, NadekoBot bot)
         {
             _log = LogManager.GetCurrentClassLogger();
@@ -90,7 +91,7 @@ namespace NadekoBot.Modules.CustomReactions.Services
                 }
             }, StackExchange.Redis.CommandFlags.FireAndForget);
 
-            ReloadInternal(bot.AllGuildConfigs, uow);
+            ReloadInternal(bot.AllGuildConfigs);
 
             bot.JoinedGuild += Bot_JoinedGuild;
             _client.LeftGuild += _client_LeftGuild;
@@ -106,7 +107,7 @@ namespace NadekoBot.Modules.CustomReactions.Services
 
         private void ReloadInternal(IEnumerable<GuildConfig> allGuildConfigs, IUnitOfWork uow)
         {
-            var guildItems = uow.CustomReactions.GetFor(allGuildConfigs.Select(x => x.GuildId));
+            var guildItems = uow.CustomReactions.GetFor(allGuildConfigs.Select(x => x.GuildId)).ToList();
             _guildReactions = new ConcurrentDictionary<ulong, ConcurrentDictionary<int, CustomReaction>>(guildItems
                 .GroupBy(k => k.GuildId.Value)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.Id, x => x).ToConcurrent()));
@@ -183,16 +184,15 @@ namespace NadekoBot.Modules.CustomReactions.Services
                         {
                             if (reaction.Response == "-")
                                 return null;
-
-                            using (var uow = _db.UnitOfWork)
-                            {
-                                var rObj = uow.CustomReactions.GetById(reaction.Id);
-                                if (rObj != null)
-                                {
-                                    rObj.UseCount += 1;
-                                    uow.Complete();
-                                }
-                            }
+                            //using (var uow = _db.UnitOfWork)
+                            //{
+                            //    var rObj = uow.CustomReactions.GetById(reaction.Id);
+                            //    if (rObj != null)
+                            //    {
+                            //        rObj.UseCount += 1;
+                            //        uow.Complete();
+                            //    }
+                            //}
                             return reaction;
                         }
                     }
@@ -260,8 +260,7 @@ namespace NadekoBot.Modules.CustomReactions.Services
                 }
                 catch (Exception ex)
                 {
-                    _log.Warn("Sending CREmbed failed");
-                    _log.Warn(ex);
+                    _log.Warn(ex.Message);
                 }
             }
             return false;
