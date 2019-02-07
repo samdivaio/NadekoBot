@@ -160,14 +160,6 @@
       "{0}rmpl"
     ]
   },
-  "slowmode": {
-    "Cmd": "slowmode",
-    "Desc": "Toggles slowmode. Slowmode deletes any excess messages users type over the specified limit of messages per X seconds. To enable, specify a number of messages (-m) each user can send, and an interval in seconds (-s).  Disable by specifying no parameters.",
-    "Usage": [
-      "{0}slowmode -m 1 -s 5",
-      "{0}slowmode"
-    ]
-  },
   "vcrolelist": {
     "Cmd": "vcrolelist",
     "Desc": "Shows a list of currently set voice channel roles.",
@@ -500,12 +492,16 @@
   },
   "prune": {
     "Cmd": "prune clear",
-    "Desc": "`{0}prune` removes all Nadeko's messages in the last 100 messages. `{0}prune X` removes last `X` number of messages from the channel (up to 100). `{0}prune @Someone` removes all Someone's messages in the last 100 messages. `{0}prune @Someone X` removes last `X` number of 'Someone's' messages in the channel.",
+    "Desc": "`{0}prune` removes all Nadeko's messages in the last 100 messages. `{0}prune X` removes last `X` number of messages from the channel (up to 100). `{0}prune @Someone` removes all Someone's messages in the last 100 messages. `{0}prune @Someone X` removes last `X` number of 'Someone's' messages in the channel. You can use the `-s` / `--safe` parameter at the end to only prune messages that are not pinned.",
     "Usage": [
       "{0}prune",
+      "{0}prune -s",
       "{0}prune 5",
+      "{0}prune 5 --safe",
       "{0}prune @Someone",
-      "{0}prune @Someone X"
+      "{0}prune @Someone --safe",
+      "{0}prune @Someone X",
+      "{0}prune @Someone X -s"
     ]
   },
   "die": {
@@ -2224,14 +2220,6 @@
       "{0}hangmanstop"
     ]
   },
-  "overwatch": {
-    "Cmd": "overwatch ow",
-    "Desc": "Show's basic stats on a player (competitive rank, playtime, level etc) Region codes are: `eu` `us` `cn` `kr`",
-    "Usage": [
-      "{0}ow us Battletag#1337",
-      "{0}overwatch eu Battletag#2016"
-    ]
-  },
   "acro": {
     "Cmd": "acrophobia acro",
     "Desc": "Starts an Acrophobia game.",
@@ -2318,7 +2306,7 @@
     "Cmd": "invitecreate invcr",
     "Desc": "Creates a new invite which has infinite max uses and never expires.",
     "Usage": [
-      "{0}crinv"
+      "{0}invcr"
     ]
   },
   "invitelist": {
@@ -2760,14 +2748,6 @@
     "Desc": "Ping the bot to see if there are latency issues.",
     "Usage": [
       "{0}ping"
-    ]
-  },
-  "slowmodewhitelist": {
-    "Cmd": "slowmodewl",
-    "Desc": "Ignores a role or a user from the slowmode feature.",
-    "Usage": [
-      "{0}slowmodewl SomeRole",
-      "{0}slowmodewl AdminDude"
     ]
   },
   "time": {
@@ -3215,13 +3195,6 @@
       "{0}deletewaifus"
     ]
   },
-  "deleteunusedcrnq": {
-    "cmd": "deleteunusedcrnq",
-    "desc": "Deletes all quotes and custom reactions which are older than a week and haven't been used a single time.",
-    "usage": [
-      "{0}deleteunusedcrnq"
-    ]
-  },
   "deletecurrency": {
     "cmd": "deletecurrency",
     "desc": "Deletes everything from Currency and CurrencyTransactions.",
@@ -3321,13 +3294,6 @@
     "desc": "Returns a list of the main Path of Exile leagues.",
     "usage": [
       "{0}poel"
-    ]
-  },
-  "pathofexileitem": {
-    "cmd": "pathofexileitem poei",
-    "desc": "Searches for a Path of Exile item from the Path of Exile GamePedia.",
-    "usage": [
-      "{0}poei \"Quill Rain\""
     ]
   },
   "pathofexilecurrency": {

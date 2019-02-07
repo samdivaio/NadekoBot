@@ -139,6 +139,7 @@ namespace NadekoBot.Modules.Searches
 
         // done in 3.0
         [NadekoCommand, Usage, Description, Aliases]
+        [NoPublicBot]
         public async Task Time([Remainder] string query)
         {
             if (!await ValidateQuery(Context.Channel, query).ConfigureAwait(false))
@@ -146,17 +147,18 @@ namespace NadekoBot.Modules.Searches
 
             if (string.IsNullOrWhiteSpace(_creds.GoogleApiKey))
             {
-                await ReplyErrorLocalized("google_api_key_missing").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("google_api_key_missing").ConfigureAwait(false);
                 return;
             }
 
             var data = await _service.GetTimeDataAsync(query).ConfigureAwait(false);
 
-            await ReplyConfirmLocalized("time",
+            await ReplyConfirmLocalizedAsync("time",
                 Format.Bold(data.Address),
                 Format.Code(data.Time.ToString("HH:mm")),
                 data.TimeZoneName).ConfigureAwait(false);
         }
+
         // done in 3.0
         [NadekoCommand, Usage, Description, Aliases]
         public async Task Youtube([Remainder] string query = null)
@@ -167,7 +169,7 @@ namespace NadekoBot.Modules.Searches
             var result = (await _google.GetVideoLinksByKeywordAsync(query, 1).ConfigureAwait(false)).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(result))
             {
-                await ReplyErrorLocalized("no_results").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("no_results").ConfigureAwait(false);
                 return;
             }
 
@@ -186,7 +188,7 @@ namespace NadekoBot.Modules.Searches
             var movie = await _service.GetMovieDataAsync(query).ConfigureAwait(false);
             if (movie == null)
             {
-                await ReplyErrorLocalized("imdb_fail").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("imdb_fail").ConfigureAwait(false);
                 return;
             }
             await Context.Channel.EmbedAsync(new EmbedBuilder().WithOkColor()
@@ -299,7 +301,7 @@ namespace NadekoBot.Modules.Searches
 
             if (shortened == query)
             {
-                await ReplyErrorLocalized("shorten_fail").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("shorten_fail").ConfigureAwait(false);
                 return;
             }
 
@@ -346,7 +348,7 @@ namespace NadekoBot.Modules.Searches
                     {
                         var aTag = elem.QuerySelector("a") as IHtmlAnchorElement; // <h3> -> <a>
                         var href = aTag?.Href;
-                        var name = aTag?.TextContent;
+                        var name = aTag?.Children.FirstOrDefault()?.TextContent;
                         if (href == null || name == null)
                             return null;
 
@@ -387,7 +389,7 @@ namespace NadekoBot.Modules.Searches
 
             if (card == null)
             {
-                await ReplyErrorLocalized("card_not_found").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("card_not_found").ConfigureAwait(false);
                 return;
             }
 
@@ -412,7 +414,7 @@ namespace NadekoBot.Modules.Searches
 
             if (string.IsNullOrWhiteSpace(_creds.MashapeKey))
             {
-                await ReplyErrorLocalized("mashape_api_missing").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("mashape_api_missing").ConfigureAwait(false);
                 return;
             }
 
@@ -421,7 +423,7 @@ namespace NadekoBot.Modules.Searches
 
             if (card == null)
             {
-                await ReplyErrorLocalized("card_not_found").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("card_not_found").ConfigureAwait(false);
                 return;
             }
             var embed = new EmbedBuilder().WithOkColor()
@@ -442,7 +444,7 @@ namespace NadekoBot.Modules.Searches
 
             if (string.IsNullOrWhiteSpace(_creds.MashapeKey))
             {
-                await ReplyErrorLocalized("mashape_api_missing").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("mashape_api_missing").ConfigureAwait(false);
                 return;
             }
 
@@ -471,7 +473,7 @@ namespace NadekoBot.Modules.Searches
                 {
                 }
             }
-            await ReplyErrorLocalized("ud_error").ConfigureAwait(false);
+            await ReplyErrorLocalizedAsync("ud_error").ConfigureAwait(false);
 
         }
 
@@ -492,7 +494,7 @@ namespace NadekoBot.Modules.Searches
 
                 if (sense?.Definition == null)
                 {
-                    await ReplyErrorLocalized("define_unknown").ConfigureAwait(false);
+                    await ReplyErrorLocalizedAsync("define_unknown").ConfigureAwait(false);
                     return;
                 }
 
@@ -521,7 +523,7 @@ namespace NadekoBot.Modules.Searches
 
             if (string.IsNullOrWhiteSpace(_creds.MashapeKey))
             {
-                await ReplyErrorLocalized("mashape_api_missing").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("mashape_api_missing").ConfigureAwait(false);
                 return;
             }
 
@@ -550,7 +552,7 @@ namespace NadekoBot.Modules.Searches
             }
             catch
             {
-                await ReplyErrorLocalized("hashtag_error").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("hashtag_error").ConfigureAwait(false);
             }
         }
 
@@ -613,7 +615,7 @@ namespace NadekoBot.Modules.Searches
                 var result = await http.GetStringAsync("https://en.wikipedia.org//w/api.php?action=query&format=json&prop=info&redirects=1&formatversion=2&inprop=url&titles=" + Uri.EscapeDataString(query)).ConfigureAwait(false);
                 var data = JsonConvert.DeserializeObject<WikipediaApiModel>(result);
                 if (data.Query.Pages[0].Missing || string.IsNullOrWhiteSpace(data.Query.Pages[0].FullUrl))
-                    await ReplyErrorLocalized("wiki_page_not_found").ConfigureAwait(false);
+                    await ReplyErrorLocalizedAsync("wiki_page_not_found").ConfigureAwait(false);
                 else
                     await Context.Channel.SendMessageAsync(data.Query.Pages[0].FullUrl).ConfigureAwait(false);
             }
@@ -659,7 +661,7 @@ namespace NadekoBot.Modules.Searches
 
             if (avatarUrl == null)
             {
-                await ReplyErrorLocalized("avatar_none", usr.ToString()).ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("avatar_none", usr.ToString()).ConfigureAwait(false);
                 return;
             }
 
@@ -677,7 +679,7 @@ namespace NadekoBot.Modules.Searches
         {
             if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(query))
             {
-                await ReplyErrorLocalized("wikia_input_error").ConfigureAwait(false);
+                await ReplyErrorLocalizedAsync("wikia_input_error").ConfigureAwait(false);
                 return;
             }
             await Context.Channel.TriggerTypingAsync().ConfigureAwait(false);
@@ -696,7 +698,7 @@ namespace NadekoBot.Modules.Searches
                 }
                 catch
                 {
-                    await ReplyErrorLocalized("wikia_error").ConfigureAwait(false);
+                    await ReplyErrorLocalizedAsync("wikia_error").ConfigureAwait(false);
                 }
             }
         }
@@ -756,7 +758,7 @@ namespace NadekoBot.Modules.Searches
                 return true;
             }
 
-            await ErrorLocalized("specify_search_params").ConfigureAwait(false);
+            await ErrorLocalizedAsync("specify_search_params").ConfigureAwait(false);
             return false;
         }
     }
